@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date
+from datetime import date, datetime, timezone
 import json
 from functools import partial
 from pathlib import Path
@@ -17,6 +17,7 @@ from .collectors.http import (
 )
 from .ingestion import ensure_bcb_sgs_selic_metadata
 from .pipeline import DEFAULT_WINDOW_YEARS, resolve_incremental_start, update_selic
+from .publish import publish_overview_json
 
 
 def _date_argument(value: str) -> date:
@@ -59,6 +60,22 @@ def _update_selic(args: argparse.Namespace) -> int:
         window_years=args.window_years,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+
+def _publish_overview(args: argparse.Namespace) -> int:
+    connection = initialize_database(args.database)
+    try:
+        target = publish_overview_json(
+            connection,
+            output_path=args.output,
+            generated_at=datetime.now(timezone.utc),
+        )
+    finally:
+        connection.close()
+
+    print(json.dumps({"published_path": str(target)}, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -111,6 +128,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="initial exponential retry backoff in seconds (default: %(default)s)",
     )
     selic.set_defaults(handler=_update_selic)
+
+    overview = subparsers.add_parser(
+        "publish-overview",
+        help="Publish the static JSON contract consumed by the overview page",
+    )
+    overview.add_argument(
+        "--database",
+        type=Path,
+        default=Path("data/database/monitor.sqlite3"),
+    )
+    overview.add_argument(
+        "--output",
+        type=Path,
+        default=Path("web/data/overview.json"),
+    )
+    overview.set_defaults(handler=_publish_overview)
     return parser
 
 

@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-import json
-import os
 from pathlib import Path
 import sqlite3
-import tempfile
 
 from ..db.observations import observations_latest
+from .atomic import write_json_atomic
 
 
 def _iso_z(value: datetime) -> str:
@@ -84,27 +82,4 @@ def publish_series_json(
         ],
     }
 
-    target = Path(output_path)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(
-        document,
-        ensure_ascii=False,
-        separators=(",", ":"),
-        sort_keys=True,
-    ).encode("utf-8") + b"\n"
-
-    fd, temporary_name = tempfile.mkstemp(
-        prefix=f".{target.name}.", suffix=".tmp", dir=target.parent
-    )
-    temporary = Path(temporary_name)
-    try:
-        with os.fdopen(fd, "wb") as stream:
-            stream.write(payload)
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(temporary, target)
-    except Exception:
-        temporary.unlink(missing_ok=True)
-        raise
-
-    return target
+    return write_json_atomic(document, output_path)
