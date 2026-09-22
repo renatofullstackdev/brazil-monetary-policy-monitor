@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+
+# Test / tooling caches
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Runtime data: produced by collectors, not source-controlled by default
+data/raw/*
+data/database/*
+data/published/*
+!data/raw/.gitkeep
+!data/database/.gitkeep
+!data/published/.gitkeep
+
+# Frontend generated data
+web/data/
+
+# Local secrets / configuration
+.env
+.env.*
+!.env.example
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
