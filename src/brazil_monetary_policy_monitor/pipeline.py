@@ -412,3 +412,236 @@ def update_focus_ipca(
         raise
     finally:
         connection.close()
+
+DEFAULT_MACRO_OVERLAP_DAYS = 90
+DEFAULT_MACRO_LOOKBACK_DAYS = 5 * 366
+
+
+def _resolve_series_incremental_start(
+    connection: sqlite3.Connection,
+    *,
+    series_key: str,
+    end: date,
+    overlap_days: int,
+    initial_lookback_days: int,
+) -> date:
+    if overlap_days < 0:
+        raise ValueError("overlap_days cannot be negative")
+    if initial_lookback_days < 1:
+        raise ValueError("initial_lookback_days must be positive")
+    row = connection.execute(
+        """
+        SELECT MAX(o.reference_end)
+        FROM observations AS o
+        JOIN series AS s ON s.id = o.series_id
+        WHERE s.key = ?
+        """,
+        (series_key,),
+    ).fetchone()
+    if row is None or row[0] is None:
+        return end - timedelta(days=initial_lookback_days)
+    return min(date.fromisoformat(str(row[0])) - timedelta(days=overlap_days), end)
+
+
+def sync_policy_inputs(
+    *,
+    database_path: str | Path,
+    overview_path: str | Path | None = None,
+    clock: Clock = utc_now,
+) -> dict[str, object]:
+    """Persist the source-backed documentary inputs used by the monetary model."""
+
+    from .ingestion import persist_policy_inputs
+    from .publish import publish_overview_json
+
+    connection = initialize_database(database_path)
+    try:
+        retrieved_at = clock()
+        inserted, unchanged = persist_policy_inputs(
+            connection,
+            retrieved_at=retrieved_at,
+        )
+        if overview_path is not None:
+            publish_overview_json(
+                connection,
+                output_path=overview_path,
+                generated_at=clock(),
+            )
+        return {
+            "status": "succeeded",
+            "records_inserted": inserted,
+            "records_unchanged": unchanged,
+            "overview_path": None if overview_path is None else str(overview_path),
+        }
+    finally:
+        connection.close()
+
+
+def update_macro_context(
+    *,
+    database_path: str | Path,
+    raw_root: str | Path,
+    published_dir: str | Path,
+    overview_path: str | Path,
+    end: date,
+    start: date | None = None,
+    fetcher: FetchBytes = fetch_bytes,
+    clock: Clock = utc_now,
+    overlap_days: int = DEFAULT_MACRO_OVERLAP_DAYS,
+    initial_lookback_days: int = DEFAULT_MACRO_LOOKBACK_DAYS,
+    window_years: int = DEFAULT_WINDOW_YEARS,
+) -> dict[str, object]:
+    """Update the Sprint 7 inflation/activity/labor context from BCB SGS.
+
+    Each SGS series receives its own ingestion run and raw snapshot directory.
+    The overview is published only after all requested series succeed, so a
+    provider failure cannot replace the last coherent dashboard contract.
+    """
+
+    from .ingestion import (
+        ensure_bcb_sgs_series_metadata,
+        persist_policy_inputs,
+    )
+    from .macro_series import MACRO_SERIES
+    from .publish import publish_overview_json
+
+    if start is not None and start > end:
+        raise ValueError("start date must not be after end date")
+    if overlap_days < 0:
+        raise ValueError("overlap_days cannot be negative")
+    if initial_lookback_days < 1:
+        raise ValueError("initial_lookback_days must be positive")
+    if not 1 <= window_years <= 10:
+        raise ValueError("window_years must be between 1 and 10")
+
+    connection = initialize_database(database_path)
+    output_dir = Path(published_dir)
+    results: list[dict[str, object]] = []
+    try:
+        # Documentary inputs are versioned separately from provider ingestion.
+        policy_inserted, policy_unchanged = persist_policy_inputs(
+            connection,
+            retrieved_at=clock(),
+        )
+
+        for spec in MACRO_SERIES:
+            source_id, series_id = ensure_bcb_sgs_series_metadata(connection, spec)
+            series_start = start or _resolve_series_incremental_start(
+                connection,
+                series_key=spec.key,
+                end=end,
+                overlap_days=overlap_days,
+                initial_lookback_days=initial_lookback_days,
+            )
+            started_at = clock()
+            run_id = start_ingestion_run(
+                connection,
+                source_id=source_id,
+                started_at=started_at,
+                collector_version="sprint7-macro",
+            )
+            snapshots = RawSnapshotRun(
+                root=Path(raw_root),
+                provider="bcb",
+                series_key=f"sgs-{spec.code}",
+                run_id=run_id,
+                started_at=started_at,
+            )
+            received = inserted = unchanged = 0
+            persisted = False
+            try:
+                records: list[SGSRecord] = []
+                for index, (window_start, window_end) in enumerate(
+                    iter_date_windows(series_start, end, max_years=window_years),
+                    start=1,
+                ):
+                    url = build_sgs_url(spec.code, window_start, window_end)
+                    payload = fetcher(url)
+                    snapshots.save_payload(index=index, url=url, payload=payload)
+                    chunk = parse_sgs_json(payload)
+                    received += len(chunk)
+                    records.extend(chunk)
+
+                records = _validate_cross_chunk_records(records)
+                retrieved_at = clock()
+                inserted, unchanged = persist_sgs_records(
+                    connection,
+                    series_id=series_id,
+                    run_id=run_id,
+                    records=records,
+                    retrieved_at=retrieved_at,
+                )
+                persisted = True
+                output_path = output_dir / f"{spec.key.replace('.', '-')}.json"
+                publish_series_json(
+                    connection,
+                    series_key=spec.key,
+                    output_path=output_path,
+                    generated_at=clock(),
+                )
+                finished_at = clock()
+                finish_ingestion_run(
+                    connection,
+                    run_id=run_id,
+                    finished_at=finished_at,
+                    status="succeeded",
+                    records_received=received,
+                    records_inserted=inserted,
+                    records_unchanged=unchanged,
+                )
+                snapshots.write_manifest(
+                    status="succeeded",
+                    finished_at=finished_at,
+                    records_received=received,
+                )
+                results.append(
+                    {
+                        "series_key": spec.key,
+                        "sgs_code": spec.code,
+                        "run_id": run_id,
+                        "status": "succeeded",
+                        "start": series_start.isoformat(),
+                        "end": end.isoformat(),
+                        "records_received": received,
+                        "records_inserted": inserted,
+                        "records_unchanged": unchanged,
+                        "published_path": str(output_path),
+                        "snapshot_directory": str(snapshots.directory),
+                    }
+                )
+            except Exception as exc:
+                finished_at = clock()
+                status = "partial" if persisted else "failed"
+                error = _error_document(exc)
+                finish_ingestion_run(
+                    connection,
+                    run_id=run_id,
+                    finished_at=finished_at,
+                    status=status,
+                    records_received=received,
+                    records_inserted=inserted,
+                    records_unchanged=unchanged,
+                    error=error,
+                )
+                snapshots.write_manifest(
+                    status=status,
+                    finished_at=finished_at,
+                    records_received=received,
+                    error=error,
+                )
+                raise
+
+        publish_overview_json(
+            connection,
+            output_path=overview_path,
+            generated_at=clock(),
+        )
+        return {
+            "status": "succeeded",
+            "policy_inputs_inserted": policy_inserted,
+            "policy_inputs_unchanged": policy_unchanged,
+            "series": results,
+            "overview_path": str(overview_path),
+        }
+    finally:
+        connection.close()

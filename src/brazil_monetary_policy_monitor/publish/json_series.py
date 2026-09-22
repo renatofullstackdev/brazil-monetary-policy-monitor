@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+import json
 import sqlite3
 
 from ..db.observations import observations_latest
@@ -35,6 +36,7 @@ def publish_series_json(
             s.frequency,
             s.data_kind,
             s.transformation,
+            s.metadata_json AS series_metadata_json,
             src.key AS source_key,
             src.provider,
             src.name AS source_name,
@@ -50,6 +52,11 @@ def publish_series_json(
         raise KeyError(f"unknown series: {series_key}")
 
     rows = observations_latest(connection, series_key)
+    try:
+        series_metadata = json.loads(metadata["series_metadata_json"] or "{}")
+    except (TypeError, json.JSONDecodeError):
+        series_metadata = {}
+    documentation_url = series_metadata.get("documentation_url") or metadata["documentation_url"]
     document = {
         "schema_version": 1,
         "generated_at": _iso_z(generated_at),
@@ -67,7 +74,7 @@ def publish_series_json(
                 "key": metadata["source_key"],
                 "provider": metadata["provider"],
                 "name": metadata["source_name"],
-                "documentation_url": metadata["documentation_url"],
+                "documentation_url": documentation_url,
                 "license": metadata["license"],
             },
         },

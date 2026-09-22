@@ -18,9 +18,12 @@ from .collectors.http import (
 from .ingestion import ensure_bcb_sgs_selic_metadata, ensure_bcb_focus_metadata
 from .pipeline import (
     DEFAULT_WINDOW_YEARS,
+    DEFAULT_MACRO_LOOKBACK_DAYS,
+    DEFAULT_MACRO_OVERLAP_DAYS,
     resolve_focus_incremental_start,
     resolve_incremental_start,
     update_focus_ipca,
+    update_macro_context,
     update_selic,
 )
 from .publish import publish_overview_json
@@ -103,6 +106,31 @@ def _update_focus(args: argparse.Namespace) -> int:
         fetcher=fetcher,
         page_size=args.page_size,
         window_days=args.window_days,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+
+def _update_macro(args: argparse.Namespace) -> int:
+    end = args.end or date.today()
+    fetcher = partial(
+        fetch_bytes,
+        timeout=args.timeout,
+        retries=args.retries,
+        backoff_seconds=args.backoff_seconds,
+    )
+    result = update_macro_context(
+        database_path=args.database,
+        raw_root=args.raw_dir,
+        published_dir=args.published_dir,
+        overview_path=args.overview_output,
+        start=args.start,
+        end=end,
+        fetcher=fetcher,
+        overlap_days=args.overlap_days,
+        initial_lookback_days=args.initial_lookback_days,
+        window_years=args.window_years,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
@@ -206,6 +234,27 @@ def build_parser() -> argparse.ArgumentParser:
     focus.add_argument("--retries", type=int, default=DEFAULT_HTTP_RETRIES)
     focus.add_argument("--backoff-seconds", type=float, default=DEFAULT_HTTP_BACKOFF_SECONDS)
     focus.set_defaults(handler=_update_focus)
+
+    macro = subparsers.add_parser(
+        "update-macro",
+        help="Collect Sprint 7 inflation, activity and labor SGS series",
+    )
+    macro.add_argument("--database", type=Path, default=Path("data/database/monitor.sqlite3"))
+    macro.add_argument("--raw-dir", type=Path, default=Path("data/raw"))
+    macro.add_argument("--published-dir", type=Path, default=Path("data/published"))
+    macro.add_argument("--overview-output", type=Path, default=Path("web/data/overview.json"))
+    macro.add_argument("--start", type=_date_argument)
+    macro.add_argument("--end", type=_date_argument)
+    macro.add_argument("--overlap-days", type=int, default=DEFAULT_MACRO_OVERLAP_DAYS)
+    macro.add_argument("--initial-lookback-days", type=int, default=DEFAULT_MACRO_LOOKBACK_DAYS)
+    macro.add_argument(
+        "--window-years", type=int, choices=range(1, 11), default=DEFAULT_WINDOW_YEARS,
+        metavar="1..10", help="calendar years per SGS request (default: %(default)s)",
+    )
+    macro.add_argument("--timeout", type=float, default=DEFAULT_HTTP_TIMEOUT)
+    macro.add_argument("--retries", type=int, default=DEFAULT_HTTP_RETRIES)
+    macro.add_argument("--backoff-seconds", type=float, default=DEFAULT_HTTP_BACKOFF_SECONDS)
+    macro.set_defaults(handler=_update_macro)
 
     overview = subparsers.add_parser(
         "publish-overview",
