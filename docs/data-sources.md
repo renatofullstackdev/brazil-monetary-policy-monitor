@@ -24,7 +24,7 @@ O catálogo de Dados Abertos do BCB expõe séries SGS com recursos JSON e CSV, 
 - parâmetros usados: `dataInicial`, `dataFinal`, `formato=json`;
 - licença indicada no catálogo: Open Data Commons Open Database License (ODbL).
 
-O catálogo informa que, desde 26/03/2025, consultas JSON/CSV de séries históricas diárias exigem filtro por datas e cada intervalo está limitado a dez anos. O coletor divide automaticamente intervalos maiores, sem tentar contornar o limite por uma requisição irrestrita.
+O catálogo informa que, desde 26/03/2025, consultas JSON/CSV de séries históricas diárias exigem filtro por datas e cada intervalo está limitado a dez anos. Dez anos é tratado apenas como **limite máximo do contrato**, não como tamanho recomendado de requisição. Depois de uma consulta histórica de dez anos exceder o timeout em uso real, o coletor passou a usar janelas operacionais de um ano por padrão. O valor pode ser configurado entre 1 e 10 anos sem alterar a semântica dos dados.
 
 O JSON da série fornece `data` e `valor`, mas não um timestamp histórico de publicação por observação. Consequentemente:
 

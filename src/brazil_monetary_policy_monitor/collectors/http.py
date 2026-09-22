@@ -12,14 +12,17 @@ class ProviderFetchError(RuntimeError):
 
 
 _USER_AGENT = "brazil-monetary-policy-monitor/0.1 (+official-data-collector)"
+DEFAULT_HTTP_TIMEOUT = 30.0
+DEFAULT_HTTP_RETRIES = 2
+DEFAULT_HTTP_BACKOFF_SECONDS = 1.0
 
 
 def fetch_bytes(
     url: str,
     *,
-    timeout: float = 20.0,
-    retries: int = 2,
-    backoff_seconds: float = 0.5,
+    timeout: float = DEFAULT_HTTP_TIMEOUT,
+    retries: int = DEFAULT_HTTP_RETRIES,
+    backoff_seconds: float = DEFAULT_HTTP_BACKOFF_SECONDS,
 ) -> bytes:
     """Fetch bytes from ``url`` with a small bounded retry policy.
 

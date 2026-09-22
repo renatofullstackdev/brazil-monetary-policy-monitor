@@ -130,7 +130,7 @@ O arquivo padrão é `data/database/monitor.sqlite3` e não deve ser versionado.
 
 ## Atualização da meta Selic
 
-A primeira execução busca o histórico desde 05/03/1999. Como o BCB limita consultas JSON/CSV de séries diárias a intervalos de até dez anos, o coletor divide automaticamente o período em janelas compatíveis. Execuções posteriores, sem `--start`, reutilizam o banco e consultam novamente os últimos sete dias para detectar eventuais alterações sem refazer todo o histórico.
+A primeira execução busca o histórico desde 05/03/1999. O BCB aceita no máximo dez anos por consulta de série diária, mas esse limite não é tratado como tamanho operacional recomendado: a carga usa, por padrão, janelas de **um ano** para reduzir o custo de cada consulta e a exposição a timeouts do SGS. O tamanho pode ser ajustado entre 1 e 10 anos com `--window-years`. Execuções posteriores, sem `--start`, reutilizam o banco e consultam novamente os últimos sete dias para detectar eventuais alterações sem refazer todo o histórico.
 
 ```bash
 ./scripts/update-selic.sh
@@ -141,6 +141,18 @@ Para um intervalo explícito:
 ```bash
 ./scripts/update-selic.sh --start 2026-09-01 --end 2026-09-22
 ```
+
+Parâmetros operacionais de rede e particionamento podem ser ajustados sem alterar o código:
+
+```bash
+./scripts/update-selic.sh \
+  --window-years 1 \
+  --timeout 30 \
+  --retries 2 \
+  --backoff-seconds 1
+```
+
+`--window-years 10` continua permitido porque respeita o limite publicado pelo BCB, mas não é o padrão: uma requisição válida segundo o contrato do provedor ainda pode ser lenta o suficiente para exceder o timeout em condições reais.
 
 Artefatos padrão:
 

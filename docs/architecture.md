@@ -163,7 +163,7 @@ HTTP oficial
 
 Cada `ingestion_run` recebe um diretório de snapshot com payloads por janela, URL consultada, tamanho e SHA-256. Uma resposta recebida é preservada antes do parsing, inclusive quando seu conteúdo é inválido. Isso permite investigar mudanças de schema ou respostas anômalas.
 
-A primeira carga da SGS 432 parte de 05/03/1999. Depois disso, a execução padrão consulta novamente uma pequena sobreposição de sete dias a partir do último período armazenado. O objetivo é detectar mudanças recentes sem baixar todo o histórico diariamente. Alterações de valor são novas revisões; valores idênticos apenas atualizam `last_seen_at`.
+A primeira carga da SGS 432 parte de 05/03/1999. Embora o provedor permita até dez anos por consulta, o pipeline usa janelas de um ano por padrão: o máximo aceito pelo contrato não é confundido com um tamanho operacional robusto, e janelas menores reduzem o trabalho por requisição quando o SGS está lento. Timeout, retries, backoff e tamanho de janela são parâmetros da CLI. Depois da carga inicial, a execução padrão consulta novamente uma pequena sobreposição de sete dias a partir do último período armazenado. O objetivo é detectar mudanças recentes sem baixar todo o histórico diariamente. Alterações de valor são novas revisões; valores idênticos apenas atualizam `last_seen_at`.
 
 O endpoint SGS usado não oferece `published_at` histórico por linha. `available_at` registra a primeira observação pelo monitor, não uma data de publicação inferida. Essa limitação é deliberadamente preservada para não fabricar vintages retroativos.
 

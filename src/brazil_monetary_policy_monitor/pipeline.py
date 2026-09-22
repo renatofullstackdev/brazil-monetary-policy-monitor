@@ -24,6 +24,7 @@ from .snapshots import RawSnapshotRun
 SELIC_SGS_CODE = 432
 SELIC_OFFICIAL_START = date(1999, 3, 5)
 DEFAULT_OVERLAP_DAYS = 7
+DEFAULT_WINDOW_YEARS = 1
 
 FetchBytes = Callable[[str], bytes]
 Clock = Callable[[], datetime]
@@ -86,11 +87,14 @@ def update_selic(
     end: date,
     fetcher: FetchBytes = fetch_bytes,
     clock: Clock = utc_now,
+    window_years: int = DEFAULT_WINDOW_YEARS,
 ) -> dict[str, object]:
     """Run the complete SGS 432 pipeline and publish only after validated persistence."""
 
     if start > end:
         raise ValueError("start date must not be after end date")
+    if not 1 <= window_years <= 10:
+        raise ValueError("window_years must be between 1 and 10")
 
     connection = initialize_database(database_path)
     source_id, series_id = ensure_bcb_sgs_selic_metadata(connection)
@@ -116,7 +120,7 @@ def update_selic(
     try:
         records: list[SGSRecord] = []
         for index, (window_start, window_end) in enumerate(
-            iter_date_windows(start, end, max_years=10),
+            iter_date_windows(start, end, max_years=window_years),
             start=1,
         ):
             url = build_sgs_url(SELIC_SGS_CODE, window_start, window_end)

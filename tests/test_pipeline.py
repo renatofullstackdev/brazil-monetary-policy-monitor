@@ -225,6 +225,44 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(failed_manifest["status"], "failed")
         self.assertEqual(failed_manifest["chunks"], [])
 
+
+    def test_default_pipeline_uses_one_year_operational_windows(self) -> None:
+        requested_urls: list[str] = []
+
+        def fetcher(url: str) -> bytes:
+            requested_urls.append(url)
+            return b"[]"
+
+        result = update_selic(
+            database_path=self.database,
+            raw_root=self.raw,
+            published_path=self.output,
+            start=date(1999, 3, 5),
+            end=date(2001, 3, 4),
+            fetcher=fetcher,
+            clock=self._clock(),
+        )
+
+        self.assertEqual(result["status"], "succeeded")
+        self.assertEqual(len(requested_urls), 2)
+        self.assertIn("dataInicial=05%2F03%2F1999", requested_urls[0])
+        self.assertIn("dataFinal=04%2F03%2F2000", requested_urls[0])
+        self.assertIn("dataInicial=05%2F03%2F2000", requested_urls[1])
+        self.assertIn("dataFinal=04%2F03%2F2001", requested_urls[1])
+
+    def test_pipeline_rejects_window_above_provider_limit(self) -> None:
+        with self.assertRaisesRegex(ValueError, "between 1 and 10"):
+            update_selic(
+                database_path=self.database,
+                raw_root=self.raw,
+                published_path=self.output,
+                start=date(2026, 9, 1),
+                end=date(2026, 9, 3),
+                fetcher=lambda _url: SAMPLE,
+                clock=self._clock(),
+                window_years=11,
+            )
+
     def test_incremental_start_overlaps_recent_observations(self) -> None:
         update_selic(
             database_path=self.database,
