@@ -7,7 +7,7 @@ name = "monetary-policy-dashboard"
 version = "0.1.0"
 description = "Auditable monetary-policy dashboard with Taylor-rule benchmarks"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 license = "MIT"
 authors = [
   { name = "Monetary Policy Dashboard contributors" }
