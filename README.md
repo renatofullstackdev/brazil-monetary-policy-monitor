@@ -52,9 +52,9 @@ Detalhes: [`docs/architecture.md`](docs/architecture.md).
 
 ## Estado atual
 
-**Sprint 2 — primeiro pipeline ponta a ponta.**
+**Sprint 4 — primeira visão geral funcional.**
 
-O repositório já coleta a série oficial BCB SGS 432 (meta Selic), preserva o payload bruto antes do parsing, valida integralmente a resposta, persiste revisões sem sobrescrever vintages anteriores e publica um JSON estático por substituição atômica. Falhas do provedor ou de validação são registradas sem apagar o último estado válido.
+O repositório já coleta a série oficial BCB SGS 432 (meta Selic), preserva vintages e snapshots brutos, implementa o núcleo dos modelos monetários e publica um contrato JSON específico para a interface estática. A primeira tela mostra a Selic real, histórico, proveniência e metadados; indicadores que ainda dependem de fontes futuras permanecem explicitamente indisponíveis em vez de receber valores artificiais.
 
 ## Estrutura
 
@@ -83,7 +83,7 @@ O repositório já coleta a série oficial BCB SGS 432 (meta Selic), preserva o 
 
 ## Ambiente de desenvolvimento
 
-Requisito inicial: Python 3.11 ou superior.
+Requisito inicial: Python 3.14 ou superior.
 
 ```bash
 python3 -m venv .venv
@@ -164,6 +164,34 @@ data/published/br-selic-target.json
 
 A série SGS 432 não fornece, no endpoint utilizado, um timestamp histórico de publicação por observação. Por isso `published_at` permanece vazio e `available_at` registra quando o monitor efetivamente observou uma revisão. O sistema não inventa disponibilidade histórica anterior à primeira coleta.
 
+## Interface local
+
+Depois de atualizar os dados, publique o contrato da tela inicial:
+
+```bash
+./scripts/publish-overview.sh
+```
+
+Sirva a pasta estática por HTTP:
+
+```bash
+./scripts/serve-web.sh
+```
+
+Acesse `http://127.0.0.1:8000/`. Abrir `web/index.html` diretamente por `file://` não é suportado porque o navegador precisa carregar `web/data/overview.json` por `fetch`.
+
+Na Sprint 4 somente a Selic possui todos os dados necessários. Taylor prospectiva, juro real, gap monetário, inflação esperada, meta, taxa neutra e hiato são exibidos como indisponíveis até suas respectivas fontes serem incorporadas. Isso é deliberado: a interface nunca usa fixtures como se fossem dados oficiais.
+
+Detalhes do contrato: [`docs/frontend-contract.md`](docs/frontend-contract.md).
+
 ## Próxima sprint
 
-Sprint 3 implementará o núcleo monetário: Taylor clássica, prospectiva com fixture controlada, Taylor inercial, juro real ex ante, gap monetário real e decomposição, todos cobertos por testes numéricos antes da primeira interface.
+Sprint 5 acrescentará o simulador local com quatro controles — inflação, meta, taxa real neutra e hiato — sem persistir cenários nem alterar os valores oficiais publicados.
+
+## Estado de implementação
+
+- Sprint 0: fundação e decisões arquiteturais — concluída;
+- Sprint 1: persistência, proveniência e vintages — concluída;
+- Sprint 2: primeiro pipeline oficial BCB/SGS — concluída;
+- Sprint 3: núcleo monetário (Taylor, postura real e decomposição) — concluída;
+- Sprint 4: contrato JSON e primeira interface estática — concluída.
