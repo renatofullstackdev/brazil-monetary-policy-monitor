@@ -52,9 +52,9 @@ Detalhes: [`docs/architecture.md`](docs/architecture.md).
 
 ## Estado atual
 
-**Sprint 1 — persistência e proveniência.**
+**Sprint 2 — primeiro pipeline ponta a ponta.**
 
-O repositório já contém o schema SQLite versionado, persistência de fontes, séries, revisões de observações, parâmetros, eventos e execuções de ingestão. Consultas `latest_revision` e `as_known` tornam a semântica de vintage explícita. Nenhum coletor externo foi implementado ainda; a Sprint 2 validará o primeiro fluxo ponta a ponta com dados oficiais.
+O repositório já coleta a série oficial BCB SGS 432 (meta Selic), preserva o payload bruto antes do parsing, valida integralmente a resposta, persiste revisões sem sobrescrever vintages anteriores e publica um JSON estático por substituição atômica. Falhas do provedor ou de validação são registradas sem apagar o último estado válido.
 
 ## Estrutura
 
@@ -128,6 +128,30 @@ Inicialize ou migre o banco de desenvolvimento com:
 
 O arquivo padrão é `data/database/monitor.sqlite3` e não deve ser versionado.
 
+## Atualização da meta Selic
+
+A primeira execução busca o histórico desde 05/03/1999. Como o BCB limita consultas JSON/CSV de séries diárias a intervalos de até dez anos, o coletor divide automaticamente o período em janelas compatíveis. Execuções posteriores, sem `--start`, reutilizam o banco e consultam novamente os últimos sete dias para detectar eventuais alterações sem refazer todo o histórico.
+
+```bash
+./scripts/update-selic.sh
+```
+
+Para um intervalo explícito:
+
+```bash
+./scripts/update-selic.sh --start 2026-09-01 --end 2026-09-22
+```
+
+Artefatos padrão:
+
+```text
+data/database/monitor.sqlite3
+data/raw/bcb/<data>/sgs-432/run-*/
+data/published/br-selic-target.json
+```
+
+A série SGS 432 não fornece, no endpoint utilizado, um timestamp histórico de publicação por observação. Por isso `published_at` permanece vazio e `available_at` registra quando o monitor efetivamente observou uma revisão. O sistema não inventa disponibilidade histórica anterior à primeira coleta.
+
 ## Próxima sprint
 
-Sprint 2 implementará o primeiro pipeline ponta a ponta com uma fonte oficial simples do BCB: snapshot bruto, validação, persistência e JSON publicado, incluindo comportamento seguro quando a fonte estiver indisponível.
+Sprint 3 implementará o núcleo monetário: Taylor clássica, prospectiva com fixture controlada, Taylor inercial, juro real ex ante, gap monetário real e decomposição, todos cobertos por testes numéricos antes da primeira interface.

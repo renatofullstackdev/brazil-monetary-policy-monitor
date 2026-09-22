@@ -12,7 +12,29 @@ O catálogo de Dados Abertos do BCB expõe séries SGS com recursos JSON e CSV, 
 
 - Portal: https://dadosabertos.bcb.gov.br/
 
-Decisão: códigos SGS só serão adicionados ao projeto depois de conferência na fonte oficial. Não copiar listas de códigos de sites terceiros.
+#### Série homologada na Sprint 2: SGS 432
+
+- chave interna: `br.selic.target`;
+- conceito oficial: taxa de juros que representa a meta definida pelo Copom para a taxa Selic;
+- código SGS: `432`;
+- frequência: diária;
+- unidade original: `% a.a.`;
+- início informado pelo catálogo: `1999-03-05`;
+- recurso JSON: `https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados`;
+- parâmetros usados: `dataInicial`, `dataFinal`, `formato=json`;
+- licença indicada no catálogo: Open Data Commons Open Database License (ODbL).
+
+O catálogo informa que, desde 26/03/2025, consultas JSON/CSV de séries históricas diárias exigem filtro por datas e cada intervalo está limitado a dez anos. O coletor divide automaticamente intervalos maiores, sem tentar contornar o limite por uma requisição irrestrita.
+
+O JSON da série fornece `data` e `valor`, mas não um timestamp histórico de publicação por observação. Consequentemente:
+
+- `reference_period` vem de `data`;
+- `published_at` fica `NULL`;
+- `available_at` é a primeira coleta em que o monitor observou aquela versão do valor;
+- uma mudança posterior de valor para a mesma data cria novo vintage;
+- não alegamos reconstruir vintages anteriores ao início do nosso próprio monitoramento apenas a partir desse endpoint.
+
+Decisão geral: outros códigos SGS só serão adicionados depois de conferência na fonte oficial. Não copiar listas de códigos de sites terceiros.
 
 ### Expectativas de Mercado / Focus
 

@@ -146,3 +146,25 @@ Framework frontend só deve ser considerado se a complexidade real de estado/com
 O schema é versionado por migrations SQL sequenciais. Observações revisáveis são imutáveis por vintage: uma revisão nova não substitui a anterior. Consultas históricas usam `available_at` como fronteira de conhecimento, conforme ADR 0006.
 
 O módulo `brazil_monetary_policy_monitor.db` usa apenas `sqlite3` da biblioteca padrão. Foreign keys são habilitadas em toda conexão aberta pelo projeto e as migrations são idempotentes.
+
+## 12. Pipeline implementado na Sprint 2
+
+A primeira implementação real usa BCB SGS 432 e estabelece o contrato operacional para novos coletores:
+
+```text
+HTTP oficial
+  -> snapshot dos bytes recebidos
+  -> validação integral
+  -> normalização
+  -> transação SQLite
+  -> JSON temporário
+  -> os.replace() para publicação atômica
+```
+
+Cada `ingestion_run` recebe um diretório de snapshot com payloads por janela, URL consultada, tamanho e SHA-256. Uma resposta recebida é preservada antes do parsing, inclusive quando seu conteúdo é inválido. Isso permite investigar mudanças de schema ou respostas anômalas.
+
+A primeira carga da SGS 432 parte de 05/03/1999. Depois disso, a execução padrão consulta novamente uma pequena sobreposição de sete dias a partir do último período armazenado. O objetivo é detectar mudanças recentes sem baixar todo o histórico diariamente. Alterações de valor são novas revisões; valores idênticos apenas atualizam `last_seen_at`.
+
+O endpoint SGS usado não oferece `published_at` histórico por linha. `available_at` registra a primeira observação pelo monitor, não uma data de publicação inferida. Essa limitação é deliberadamente preservada para não fabricar vintages retroativos.
+
+Falhas antes da persistência deixam a execução como `failed`. Falhas posteriores à persistência usam `partial`. Em ambos os casos, um JSON previamente válido não é apagado. Ver ADR 0007.
