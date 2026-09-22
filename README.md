@@ -67,7 +67,6 @@ O repositório já contém o schema SQLite versionado, persistência de fontes, 
 │   ├── methodology.md
 │   ├── data-model.md
 │   ├── data-sources.md
-│   ├── project-plan.md
 │   └── decisions/
 ├── src/brazil_monetary_policy_monitor/
 │   └── db/
