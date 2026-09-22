@@ -15,6 +15,7 @@ class WebShellTests(unittest.TestCase):
             '<main id="conteudo"',
             'id="primary-cards"',
             'id="assumption-cards"',
+            'id="context-cards"',
             'id="history-chart"',
             'id="metadata-dialog"',
             'aria-live="polite"',
