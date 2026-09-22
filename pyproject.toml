@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "brazil-monetary-policy-monitor"
 version = "0.1.0"
-description = "Auditable monetary-policy dashboard with Taylor-rule benchmarks"
+description = "Auditable Brazilian monetary-policy monitor with Taylor-rule benchmarks"
 readme = "README.md"
 requires-python = ">=3.14"
 license = "MIT"
@@ -19,3 +19,6 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"brazil_monetary_policy_monitor.db" = ["migrations/*.sql"]
