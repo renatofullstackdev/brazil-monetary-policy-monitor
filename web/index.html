@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Monitor auditável da política monetária brasileira.">
+  <title>Brazil Monetary Policy Monitor</title>
+  <link rel="stylesheet" href="./css/app.css">
+</head>
+<body>
+  <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
+
+  <header class="site-header">
+    <div class="shell header-inner">
+      <div>
+        <p class="eyebrow">Brasil · política monetária</p>
+        <h1>Monitor de Política Monetária</h1>
+        <p class="subtitle">Regra de Taylor como benchmark, com dados e premissas auditáveis.</p>
+      </div>
+      <div class="header-status" aria-live="polite">
+        <span id="data-status" class="status-dot" aria-hidden="true"></span>
+        <span id="generated-at">Carregando dados…</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="conteudo" class="shell main-layout">
+    <section aria-labelledby="situacao-title">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Visão geral</p>
+          <h2 id="situacao-title">Situação monetária</h2>
+        </div>
+        <p id="knowledge-mode" class="context-label"></p>
+      </div>
+
+      <div id="primary-cards" class="metric-grid metric-grid-primary" aria-live="polite"></div>
+
+      <div class="assumption-panel" aria-labelledby="premissas-title">
+        <div class="panel-heading">
+          <h3 id="premissas-title">Premissas da Taylor prospectiva</h3>
+          <p>Valores ainda não incorporados permanecem explicitamente indisponíveis.</p>
+        </div>
+        <div id="assumption-cards" class="metric-grid metric-grid-assumptions"></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="historico-title" class="history-section">
+      <div class="section-heading history-heading">
+        <div>
+          <p class="section-kicker">Histórico</p>
+          <h2 id="historico-title">Selic e benchmark de Taylor</h2>
+        </div>
+        <div id="range-controls" class="range-controls" role="group" aria-label="Período do gráfico">
+          <button type="button" data-range="1" aria-pressed="false">1A</button>
+          <button type="button" data-range="3" aria-pressed="false">3A</button>
+          <button type="button" data-range="5" aria-pressed="false">5A</button>
+          <button type="button" data-range="10" aria-pressed="true">10A</button>
+          <button type="button" data-range="all" aria-pressed="false">Tudo</button>
+        </div>
+      </div>
+
+      <div class="chart-panel">
+        <div class="chart-legend" aria-label="Séries do gráfico">
+          <span><span class="legend-line legend-selic" aria-hidden="true"></span>Selic</span>
+          <span id="taylor-legend"><span class="legend-line legend-taylor" aria-hidden="true"></span>Taylor prospectiva</span>
+        </div>
+        <div id="history-message" class="inline-note"></div>
+        <div id="history-chart" class="chart" role="img" aria-label="Histórico da Selic e da Taylor prospectiva"></div>
+        <p id="chart-summary" class="sr-only" aria-live="polite"></p>
+      </div>
+
+      <details class="data-table-panel">
+        <summary>Tabela das observações recentes</summary>
+        <div class="table-wrap">
+          <table>
+            <caption class="sr-only">Observações recentes no período selecionado</caption>
+            <thead>
+              <tr>
+                <th scope="col">Data</th>
+                <th scope="col">Selic</th>
+                <th scope="col">Taylor prospectiva</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body"></tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+
+    <section class="method-note" aria-labelledby="leitura-title">
+      <div>
+        <p class="section-kicker">Como ler</p>
+        <h2 id="leitura-title">Dado, estimativa e cálculo não são a mesma coisa</h2>
+      </div>
+      <p>O painel identifica a natureza de cada valor. Uma série ausente não é preenchida com aproximações silenciosas; o motivo e os insumos faltantes ficam disponíveis nos metadados.</p>
+    </section>
+
+    <div id="load-error" class="error-panel" hidden role="alert"></div>
+  </main>
+
+  <dialog id="metadata-dialog" aria-labelledby="metadata-title">
+    <form method="dialog" class="dialog-shell">
+      <div class="dialog-heading">
+        <div>
+          <p class="section-kicker">Metadados</p>
+          <h2 id="metadata-title">Indicador</h2>
+        </div>
+        <button class="dialog-close" value="close" aria-label="Fechar metadados">×</button>
+      </div>
+      <div id="metadata-body"></div>
+    </form>
+  </dialog>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
