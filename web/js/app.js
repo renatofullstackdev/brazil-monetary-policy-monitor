@@ -1,10 +1,14 @@
 import { loadOverview } from "./data.js";
 import { renderOverview } from "./views/overview.js";
+import { initializeSimulator } from "./views/simulator.js";
+import { initializeSimulator } from "./views/simulator.js";
 
 async function main() {
   try {
     const payload = await loadOverview();
     renderOverview(payload);
+    initializeSimulator(payload);
+    initializeSimulator(payload);
   } catch (error) {
     const panel = document.querySelector("#load-error");
     const dot = document.querySelector("#data-status");

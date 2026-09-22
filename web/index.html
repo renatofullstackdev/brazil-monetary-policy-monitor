@@ -45,6 +45,74 @@
       </div>
     </section>
 
+    <section aria-labelledby="simulador-title" class="simulator-section">
+      <div class="section-heading simulator-heading">
+        <div>
+          <p class="section-kicker">Simulador</p>
+          <h2 id="simulador-title">Teste as quatro premissas da Taylor prospectiva</h2>
+          <p class="section-intro">A simulação ocorre somente nesta sessão do navegador. Ela não altera nem grava os dados publicados.</p>
+        </div>
+        <button id="simulator-reset" class="secondary-button" type="button">Restaurar publicados</button>
+      </div>
+
+      <div class="simulator-layout">
+        <div>
+          <div id="simulator-controls" class="simulator-controls"></div>
+          <p id="simulator-status" class="simulator-status" aria-live="polite"></p>
+        </div>
+
+        <aside class="simulator-results" aria-labelledby="simulador-resultado-title">
+          <h3 id="simulador-resultado-title">Resultado</h3>
+          <dl class="sim-summary">
+            <div>
+              <dt>Taylor publicada</dt>
+              <dd id="sim-official-taylor">—</dd>
+            </div>
+            <div class="sim-summary-primary">
+              <dt>Taylor simulada</dt>
+              <dd id="sim-taylor">—</dd>
+            </div>
+            <div>
+              <dt>Impacto vs. publicada</dt>
+              <dd id="sim-vs-official">—</dd>
+            </div>
+            <div>
+              <dt>Selic atual</dt>
+              <dd id="sim-current-selic">—</dd>
+            </div>
+            <div>
+              <dt>Selic − Taylor simulada</dt>
+              <dd id="sim-selic-gap">—</dd>
+            </div>
+          </dl>
+
+          <div class="decomposition" aria-labelledby="decomposicao-title">
+            <h3 id="decomposicao-title">Decomposição</h3>
+            <div class="decomposition-row" data-decomposition="neutral">
+              <span>Taxa real neutra</span>
+              <strong class="decomposition-value">—</strong>
+            </div>
+            <div class="decomposition-row" data-decomposition="inflation">
+              <span>Inflação esperada</span>
+              <strong class="decomposition-value">—</strong>
+            </div>
+            <div class="decomposition-row" data-decomposition="inflation_gap">
+              <span>0,5 × desvio da inflação</span>
+              <strong class="decomposition-value">—</strong>
+            </div>
+            <div class="decomposition-row" data-decomposition="output_gap">
+              <span>0,5 × hiato</span>
+              <strong class="decomposition-value">—</strong>
+            </div>
+            <div class="decomposition-row decomposition-total" data-decomposition="total">
+              <span>Taylor simulada</span>
+              <strong class="decomposition-value">—</strong>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
     <section aria-labelledby="historico-title" class="history-section">
       <div class="section-heading history-heading">
         <div>
