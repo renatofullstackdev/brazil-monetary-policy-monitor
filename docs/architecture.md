@@ -139,3 +139,10 @@ PostgreSQL ou uma API de aplicação só devem ser considerados se aparecer pelo
 - necessidade de atualizações transacionais remotas.
 
 Framework frontend só deve ser considerado se a complexidade real de estado/componentização superar o custo adicional.
+
+
+## 11. Persistência implementada na Sprint 1
+
+O schema é versionado por migrations SQL sequenciais. Observações revisáveis são imutáveis por vintage: uma revisão nova não substitui a anterior. Consultas históricas usam `available_at` como fronteira de conhecimento, conforme ADR 0006.
+
+O módulo `brazil_monetary_policy_monitor.db` usa apenas `sqlite3` da biblioteca padrão. Foreign keys são habilitadas em toda conexão aberta pelo projeto e as migrations são idempotentes.

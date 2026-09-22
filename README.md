@@ -52,9 +52,9 @@ Detalhes: [`docs/architecture.md`](docs/architecture.md).
 
 ## Estado atual
 
-**Sprint 0 — fundação do projeto.**
+**Sprint 1 — persistência e proveniência.**
 
-Nesta etapa o repositório contém a especificação, decisões arquiteturais iniciais, estrutura Python mínima e testes de sanidade. Nenhum coletor de dados ou cálculo de Taylor foi implementado ainda; isso é deliberado para manter os commits e a validação incrementais.
+O repositório já contém o schema SQLite versionado, persistência de fontes, séries, revisões de observações, parâmetros, eventos e execuções de ingestão. Consultas `latest_revision` e `as_known` tornam a semântica de vintage explícita. Nenhum coletor externo foi implementado ainda; a Sprint 2 validará o primeiro fluxo ponta a ponta com dados oficiais.
 
 ## Estrutura
 
@@ -70,6 +70,8 @@ Nesta etapa o repositório contém a especificação, decisões arquiteturais in
 │   ├── project-plan.md
 │   └── decisions/
 ├── src/brazil_monetary_policy_monitor/
+│   └── db/
+│       └── migrations/
 ├── tests/
 ├── collector/
 ├── data/
@@ -117,6 +119,16 @@ operations simple while preserving a migration path if concurrent
 writers or a public query API become necessary later.
 ```
 
+## Banco local
+
+Inicialize ou migre o banco de desenvolvimento com:
+
+```bash
+./scripts/init-db.sh
+```
+
+O arquivo padrão é `data/database/monitor.sqlite3` e não deve ser versionado.
+
 ## Próxima sprint
 
-Sprint 1 implementará o núcleo de persistência: schema SQLite, séries, observações, fontes, parâmetros, eventos, ingestões e suporte explícito a vintages.
+Sprint 2 implementará o primeiro pipeline ponta a ponta com uma fonte oficial simples do BCB: snapshot bruto, validação, persistência e JSON publicado, incluindo comportamento seguro quando a fonte estiver indisponível.
