@@ -69,7 +69,7 @@ Nesta etapa o repositório contém a especificação, decisões arquiteturais in
 │   ├── data-sources.md
 │   ├── project-plan.md
 │   └── decisions/
-├── src/monetary_policy_dashboard/
+├── src/brazil_monetary_policy_monitor/
 ├── tests/
 ├── collector/
 ├── data/

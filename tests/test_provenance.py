@@ -1,6 +1,6 @@
 import unittest
 
-from monetary_policy_dashboard import DataKind
+from brazil_monetary_policy_monitor import DataKind
 
 
 class DataKindTest(unittest.TestCase):
