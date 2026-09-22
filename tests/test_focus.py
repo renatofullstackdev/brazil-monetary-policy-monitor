@@ -28,8 +28,10 @@ class FocusCollectorTests(unittest.TestCase):
         self.assertIn("%24top=50", url)
         self.assertNotIn("%24skip", url)
         self.assertNotIn("%24orderby", url)
-        self.assertIn("Indicador+eq+%27IPCA%27", url)
-        self.assertNotIn("baseCalculo+eq", url)
+        self.assertIn("Indicador%20eq%20%27IPCA%27", url)
+        self.assertNotIn("Indicador+eq", url)
+        self.assertIn("%20and%20Data%20ge%20", url)
+        self.assertNotIn("baseCalculo%20eq", url)
 
     def test_focus_windows_cover_range_without_overlap(self) -> None:
         windows = list(

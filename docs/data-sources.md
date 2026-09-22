@@ -146,7 +146,7 @@ Antes de criar um coletor, registrar:
 - Official catalog: <https://dadosabertos.bcb.gov.br/dataset/expectativas-mercado>
 - OData entity set: `ExpectativaMercadoMensais`
 - Indicator used: `IPCA`
-- Filter: `baseCalculo = 0`
+- Client-side basis selection: retain `baseCalculo = 0` / `false`; discard `1` / `true`
 - Fields retained: `Data`, `DataReferencia`, `Mediana`, `numeroRespondentes`, `baseCalculo`
 - Retrieval strategy: bounded date windows (30 days by default), with no dependency on `$skip` or server-side ordering.
 - `$top=10000` is a safety ceiling; if a window reaches the ceiling, ingestion fails and requires a smaller window rather than silently assuming completeness.
@@ -158,13 +158,16 @@ Antes de criar um coletor, registrar:
 
 The horizon-aligned series compounds the twelve monthly medians ending in the current source-backed Copom policy horizon. It is explicitly classified as `derived` rather than `survey`.
 
+#### Focus OData query encoding
 
-#### Focus baseCalculo compatibility
+The Focus query string uses RFC 3986 encoding for OData expressions. In
+particular, spaces inside `$filter` are encoded as `%20`, not `+`. Python's
+default `urlencode()` behavior follows form encoding and represents spaces as
+`+`; the active Olinda parser can interpret that character as an OData
+operator and return misleading type errors such as `Edm.Boolean` versus
+`Edm.String`.
 
-`ExpectativaMercadoMensais` is queried without a server-side `baseCalculo` filter.
-The active Olinda service has returned incompatible OData typing for comparisons
-against the historical integer literal `0`, while client libraries and older
-documentation expose the field as an integer. The collector therefore accepts
-`0`/`false` as the current-expectation basis and discards `1`/`true` locally.
-This preserves the intended economic series without depending on the provider's
-wire-level representation of that binary field.
+`baseCalculo` is intentionally not filtered server-side. The collector accepts
+both the historical integer representation (`0`/`1`) and boolean representation
+(`false`/`true`) and retains only the current-expectation basis locally. This
+keeps the economic selection independent from provider representation details.

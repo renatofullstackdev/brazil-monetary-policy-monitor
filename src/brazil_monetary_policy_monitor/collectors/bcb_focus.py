@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 import json
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 
 FOCUS_MONTHLY_ENDPOINT = (
@@ -86,7 +86,8 @@ def build_focus_monthly_url(
             ),
             "$top": str(top),
             "$format": "json",
-        }
+        },
+        quote_via=quote,
     )
     return f"{FOCUS_MONTHLY_ENDPOINT}?{query}"
 
