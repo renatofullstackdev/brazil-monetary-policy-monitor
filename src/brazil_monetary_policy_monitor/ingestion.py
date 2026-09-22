@@ -527,3 +527,206 @@ def persist_horizon_expectations(
             )
             inserted += 1
     return inserted, unchanged
+
+POLICY_DOCUMENT_SOURCE_KEY = "bcb.policy_documents"
+
+
+def ensure_bcb_sgs_series_metadata(connection: sqlite3.Connection, spec) -> tuple[int, int]:
+    """Register a non-Selic SGS series without coupling ingestion to one code."""
+
+    existing_source = connection.execute(
+        "SELECT id FROM sources WHERE key = ?", (BCB_SGS_SOURCE_KEY,)
+    ).fetchone()
+    if existing_source is None:
+        connection.execute(
+            """
+            INSERT INTO sources(key, provider, name, url, documentation_url, license, metadata_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                BCB_SGS_SOURCE_KEY,
+                "BCB",
+                "Sistema Gerenciador de Séries Temporais (SGS)",
+                "https://api.bcb.gov.br/dados/serie/",
+                "https://www3.bcb.gov.br/sgspub/",
+                "Open Data Commons Open Database License (ODbL)",
+                json.dumps({"database": "SGS"}, sort_keys=True),
+            ),
+        )
+        source_id = int(connection.execute("SELECT last_insert_rowid()").fetchone()[0])
+    else:
+        source_id = int(existing_source["id"])
+
+    metadata = {
+        "sgs_code": spec.code,
+        "documentation_url": spec.documentation_url,
+    }
+    connection.execute(
+        """
+        INSERT INTO series(
+            key, source_id, source_series_id, title, description,
+            unit_original, unit_normalized, frequency, data_kind,
+            transformation, metadata_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+            source_id = excluded.source_id,
+            source_series_id = excluded.source_series_id,
+            title = excluded.title,
+            description = excluded.description,
+            unit_original = excluded.unit_original,
+            unit_normalized = excluded.unit_normalized,
+            frequency = excluded.frequency,
+            data_kind = excluded.data_kind,
+            transformation = excluded.transformation,
+            metadata_json = excluded.metadata_json,
+            updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        """,
+        (
+            spec.key,
+            source_id,
+            str(spec.code),
+            spec.title,
+            spec.description,
+            spec.unit_original,
+            spec.unit_normalized,
+            spec.frequency,
+            spec.data_kind,
+            spec.transformation,
+            json.dumps(metadata, ensure_ascii=False, sort_keys=True),
+        ),
+    )
+    series_id = int(
+        connection.execute("SELECT id FROM series WHERE key = ?", (spec.key,)).fetchone()[0]
+    )
+    connection.commit()
+    return source_id, series_id
+
+
+def ensure_policy_document_source(connection: sqlite3.Connection) -> int:
+    """Register official BCB/CMN documentary inputs as a distinct source."""
+
+    connection.execute(
+        """
+        INSERT INTO sources(key, provider, name, url, documentation_url, license, metadata_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+            provider = excluded.provider,
+            name = excluded.name,
+            url = excluded.url,
+            documentation_url = excluded.documentation_url,
+            metadata_json = excluded.metadata_json,
+            updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        """,
+        (
+            POLICY_DOCUMENT_SOURCE_KEY,
+            "BCB/CMN",
+            "Documentos oficiais de política monetária",
+            "https://www.bcb.gov.br/publicacoes/rpm",
+            "https://www.bcb.gov.br/controleinflacao",
+            None,
+            json.dumps(
+                {
+                    "scope": "source-backed documentary model inputs",
+                    "publication_time_precision": "day",
+                },
+                sort_keys=True,
+            ),
+        ),
+    )
+    source_id = int(
+        connection.execute(
+            "SELECT id FROM sources WHERE key = ?", (POLICY_DOCUMENT_SOURCE_KEY,)
+        ).fetchone()[0]
+    )
+    connection.commit()
+    return source_id
+
+
+def _parameter_version_key(item) -> str:
+    content = "|".join(
+        (
+            item.key,
+            _canonical_decimal(Decimal(str(item.value))),
+            item.unit,
+            item.data_kind,
+            item.effective_from.isoformat(),
+            item.published_on.isoformat(),
+            item.source_reference,
+            item.methodology,
+        )
+    )
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+def persist_policy_inputs(
+    connection: sqlite3.Connection,
+    *,
+    retrieved_at: datetime,
+    inputs=None,
+) -> tuple[int, int]:
+    """Persist curated policy inputs idempotently with exact documentary provenance."""
+
+    if inputs is None:
+        from .policy_inputs import POLICY_INPUTS
+
+        inputs = POLICY_INPUTS
+
+    source_id = ensure_policy_document_source(connection)
+    retrieved = iso_z(retrieved_at)
+    inserted = 0
+    unchanged = 0
+
+    with connection:
+        for item in inputs:
+            version_key = _parameter_version_key(item)
+            existing = connection.execute(
+                """
+                SELECT id FROM parameters
+                WHERE key = ? AND effective_from = ? AND version_key = ?
+                """,
+                (item.key, item.effective_from.isoformat(), version_key),
+            ).fetchone()
+            if existing is not None:
+                unchanged += 1
+                continue
+
+            # The source establishes a calendar day, not a clock time. Use the
+            # end of that UTC day as a conservative knowledge boundary so an
+            # as-known query cannot treat the document as available earlier
+            # during the publication date. Metadata preserves day precision.
+            published = f"{item.published_on.isoformat()}T23:59:59Z"
+            metadata = {
+                "publication_time_precision": "day",
+                "reference_period": item.reference_period,
+                "source_url": item.source_url,
+                "source_label": item.source_label,
+                "note": item.note,
+            }
+            connection.execute(
+                """
+                INSERT INTO parameters(
+                    key, value, unit, data_kind, effective_from, effective_to,
+                    published_at, available_at, retrieved_at, version_key,
+                    source_id, source_reference, methodology, ingestion_run_id,
+                    metadata_json
+                ) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
+                """,
+                (
+                    item.key,
+                    item.value,
+                    item.unit,
+                    item.data_kind,
+                    item.effective_from.isoformat(),
+                    published,
+                    published,
+                    retrieved,
+                    version_key,
+                    source_id,
+                    item.source_reference,
+                    item.methodology,
+                    json.dumps(metadata, ensure_ascii=False, sort_keys=True),
+                ),
+            )
+            inserted += 1
+
+    return inserted, unchanged
