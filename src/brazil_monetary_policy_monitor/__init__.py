@@ -1,4 +1,4 @@
-"""Core package for the monetary-policy dashboard."""
+"""Core package for the Brazil Monetary Policy Monitor."""
 
 from .provenance import DataKind
 
