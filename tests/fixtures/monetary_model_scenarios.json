@@ -1,0 +1,33 @@
+{
+  "fixture_kind": "test_only",
+  "description": "Deterministic monetary-model scenarios. These values are not provider observations and must never be presented as official data.",
+  "scenarios": {
+    "classical": {
+      "realized_inflation": 4.72,
+      "inflation_target": 3.0,
+      "neutral_real_rate": 5.0,
+      "output_gap": 0.4,
+      "expected_rate": 10.78
+    },
+    "prospective": {
+      "expected_inflation": 3.7,
+      "inflation_target": 3.0,
+      "neutral_real_rate": 5.0,
+      "output_gap": 0.4,
+      "expected_rate": 9.25
+    },
+    "inertial": {
+      "previous_policy_rate": 12.0,
+      "taylor_rate": 9.0,
+      "smoothing": 0.75,
+      "expected_rate": 11.25
+    },
+    "real_stance": {
+      "nominal_rate": 12.0,
+      "expected_inflation": 4.2,
+      "neutral_real_rate": 5.0,
+      "expected_real_rate": 7.8,
+      "expected_gap": 2.8
+    }
+  }
+}
