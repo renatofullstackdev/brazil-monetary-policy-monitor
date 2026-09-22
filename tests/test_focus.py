@@ -8,6 +8,7 @@ import unittest
 
 from brazil_monetary_policy_monitor.collectors.bcb_focus import (
     build_focus_monthly_url,
+    iter_focus_windows,
     parse_focus_monthly_json,
 )
 from brazil_monetary_policy_monitor.horizons import (
@@ -22,12 +23,22 @@ SAMPLE = (FIXTURES / "focus_ipca_monthly_sample.json").read_bytes()
 
 class FocusCollectorTests(unittest.TestCase):
     def test_url_filters_ipca_base_zero_and_date_window(self) -> None:
-        url = build_focus_monthly_url(date(2026, 9, 1), date(2026, 9, 30), skip=10, top=50)
+        url = build_focus_monthly_url(date(2026, 9, 1), date(2026, 9, 30), top=50)
         self.assertIn("ExpectativaMercadoMensais", url)
         self.assertIn("%24top=50", url)
-        self.assertIn("%24skip=10", url)
+        self.assertNotIn("%24skip", url)
+        self.assertNotIn("%24orderby", url)
         self.assertIn("Indicador+eq+%27IPCA%27", url)
         self.assertIn("baseCalculo+eq+0", url)
+
+    def test_focus_windows_cover_range_without_overlap(self) -> None:
+        windows = list(
+            iter_focus_windows(date(2026, 1, 1), date(2026, 7, 15), max_days=90)
+        )
+        self.assertEqual(windows[0], (date(2026, 1, 1), date(2026, 3, 31)))
+        self.assertEqual(windows[-1][1], date(2026, 7, 15))
+        for previous, current in zip(windows, windows[1:]):
+            self.assertEqual(previous[1].toordinal() + 1, current[0].toordinal())
 
     def test_parser_preserves_survey_date_target_month_and_median(self) -> None:
         records = parse_focus_monthly_json(SAMPLE)

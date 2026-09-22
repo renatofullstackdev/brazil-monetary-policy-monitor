@@ -140,3 +140,20 @@ class FocusPipelineTests(unittest.TestCase):
                 real_rate["latest"]["value"],
                 overview["series"]["selic"]["latest"]["value"] - expectation["latest"]["value"],
             )
+
+    def test_row_ceiling_fails_instead_of_assuming_pagination(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with self.assertRaisesRegex(ValueError, "reduce --window-days"):
+                update_focus_ipca(
+                    database_path=root / "monitor.sqlite3",
+                    raw_root=root / "raw",
+                    published_path=root / "focus.json",
+                    overview_path=root / "overview.json",
+                    start=date(2026, 9, 1),
+                    end=date(2026, 9, 30),
+                    fetcher=lambda _url: SAMPLE,
+                    clock=AdvancingClock(),
+                    page_size=24,
+                )
+

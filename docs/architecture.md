@@ -191,3 +191,13 @@ O contrato está documentado em `docs/frontend-contract.md`.
 A simulação permanece inteiramente no frontend. Os quatro parâmetros principais são inicializados a partir de valores publicados quando disponíveis; ausências permanecem vazias. O resultado não é enviado ao pipeline nem persistido no navegador ou no SQLite.
 
 A fórmula canônica é espelhada em um módulo JavaScript puro para resposta imediata aos controles. A implementação Python permanece como referência e pode ser comparada automaticamente com o módulo do navegador quando Node.js estiver disponível no ambiente de teste. Ver ADR 0010.
+
+### Focus ingestion and horizon alignment
+
+Sprint 6 adds a second BCB ingestion path using the Focus OData service. It stores monthly IPCA medians as immutable vintages and derives a separate policy-horizon series. The raw survey and the derived horizon value remain separate series so downstream models cannot silently confuse source data with transformation output.
+
+`source_observation_at` was added to the observation model because provider chronology and public availability are different concepts. This also provides a deterministic provider-revision ordering when historical rows are first ingested in one backfill run.
+
+### Focus OData boundary
+
+The Focus collector deliberately avoids `$skip` pagination and `$orderby`. The Olinda resource is queried through bounded date windows, then validated and sorted locally. A response that reaches the configured row ceiling is treated as potentially truncated and is not persisted. This keeps completeness under the monitor's control instead of depending on provider pagination behavior.

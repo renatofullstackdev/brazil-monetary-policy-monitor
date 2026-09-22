@@ -139,3 +139,21 @@ Antes de criar um coletor, registrar:
 10. licença/termos quando relevante;
 11. limites operacionais;
 12. transformação necessária.
+
+## BCB Focus — monthly IPCA expectations
+
+- Dataset: **Expectativas de Mercado** (`EXP`)
+- Official catalog: <https://dadosabertos.bcb.gov.br/dataset/expectativas-mercado>
+- OData entity set: `ExpectativaMercadoMensais`
+- Indicator used: `IPCA`
+- Filter: `baseCalculo = 0`
+- Fields retained: `Data`, `DataReferencia`, `Mediana`, `numeroRespondentes`, `baseCalculo`
+- Retrieval strategy: bounded date windows (90 days by default), with no dependency on `$skip` or server-side ordering.
+- `$top=10000` is a safety ceiling; if a window reaches the ceiling, ingestion fails and requires a smaller window rather than silently assuming completeness.
+- Records are sorted and de-duplicated locally after validation.
+- Local raw series: `br.focus.ipca.monthly_median`
+- Derived series: `br.focus.ipca.policy_horizon`
+
+`Data` is stored as `source_observation_at`, not automatically as `published_at`. The BCB catalog says the statistics are calculated daily and published on the first business day of the week, so a backfill must not invent historical public-availability timestamps.
+
+The horizon-aligned series compounds the twelve monthly medians ending in the current source-backed Copom policy horizon. It is explicitly classified as `derived` rather than `survey`.

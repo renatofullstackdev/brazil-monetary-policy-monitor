@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 import json
 from urllib.parse import urlencode
@@ -14,6 +14,7 @@ FOCUS_MONTHLY_ENDPOINT = (
     "ExpectativaMercadoMensais"
 )
 DEFAULT_PAGE_SIZE = 10_000
+DEFAULT_WINDOW_DAYS = 90
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,17 +38,39 @@ def _parse_reference_month(value: object) -> date:
         raise ValueError(f"invalid Focus DataReferencia: {value!r}") from exc
 
 
+def iter_focus_windows(
+    start: date,
+    end: date,
+    *,
+    max_days: int = DEFAULT_WINDOW_DAYS,
+):
+    """Yield bounded inclusive date windows for Focus requests.
+
+    Olinda does not expose a reliable pagination contract for this resource, so
+    the collector bounds the result set by date instead of depending on $skip.
+    """
+
+    if start > end:
+        raise ValueError("start date must not be after end date")
+    if max_days <= 0:
+        raise ValueError("max_days must be positive")
+
+    cursor = start
+    span = timedelta(days=max_days - 1)
+    while cursor <= end:
+        window_end = min(cursor + span, end)
+        yield cursor, window_end
+        cursor = window_end + timedelta(days=1)
+
+
 def build_focus_monthly_url(
     start: date,
     end: date,
     *,
-    skip: int = 0,
     top: int = DEFAULT_PAGE_SIZE,
 ) -> str:
     if start > end:
         raise ValueError("start date must not be after end date")
-    if skip < 0:
-        raise ValueError("skip cannot be negative")
     if top <= 0:
         raise ValueError("top must be positive")
 
@@ -61,9 +84,7 @@ def build_focus_monthly_url(
             "$select": (
                 "Indicador,Data,DataReferencia,Mediana,numeroRespondentes,baseCalculo"
             ),
-            "$orderby": "Data asc,DataReferencia asc",
             "$top": str(top),
-            "$skip": str(skip),
             "$format": "json",
         }
     )

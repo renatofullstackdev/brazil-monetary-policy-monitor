@@ -102,6 +102,7 @@ def _update_focus(args: argparse.Namespace) -> int:
         end=end,
         fetcher=fetcher,
         page_size=args.page_size,
+        window_days=args.window_days,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
@@ -193,6 +194,14 @@ def build_parser() -> argparse.ArgumentParser:
     focus.add_argument("--overlap-days", type=int, default=21)
     focus.add_argument("--initial-lookback-days", type=int, default=730)
     focus.add_argument("--page-size", type=int, default=10000)
+    focus.add_argument(
+        "--window-days",
+        type=int,
+        choices=range(1, 367),
+        default=90,
+        metavar="1..366",
+        help="calendar days per Focus request (default: %(default)s)",
+    )
     focus.add_argument("--timeout", type=float, default=DEFAULT_HTTP_TIMEOUT)
     focus.add_argument("--retries", type=int, default=DEFAULT_HTTP_RETRIES)
     focus.add_argument("--backoff-seconds", type=float, default=DEFAULT_HTTP_BACKOFF_SECONDS)

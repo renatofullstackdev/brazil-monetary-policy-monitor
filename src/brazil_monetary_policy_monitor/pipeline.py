@@ -245,10 +245,15 @@ def update_focus_ipca(
     fetcher: FetchBytes = fetch_bytes,
     clock: Clock = utc_now,
     page_size: int = 10_000,
+    window_days: int = 90,
 ) -> dict[str, object]:
     """Collect monthly Focus IPCA medians and derive the Copom-horizon 12m proxy."""
 
-    from .collectors.bcb_focus import build_focus_monthly_url, parse_focus_monthly_json
+    from .collectors.bcb_focus import (
+        build_focus_monthly_url,
+        iter_focus_windows,
+        parse_focus_monthly_json,
+    )
     from .horizons import derive_horizon_expectations, resolve_br_policy_horizon
     from .ingestion import (
         FOCUS_IPCA_POLICY_HORIZON_SERIES_KEY,
@@ -262,6 +267,8 @@ def update_focus_ipca(
         raise ValueError("start date must not be after end date")
     if page_size < 1 or page_size > 10_000:
         raise ValueError("page_size must be between 1 and 10000")
+    if window_days < 1 or window_days > 366:
+        raise ValueError("window_days must be between 1 and 366")
 
     connection = initialize_database(database_path)
     source_id, monthly_series_id, horizon_series_id = ensure_bcb_focus_metadata(connection)
@@ -289,32 +296,34 @@ def update_focus_ipca(
     try:
         records = []
         seen: set[tuple[date, date]] = set()
-        for window_start, window_end in iter_date_windows(start, end, max_years=1):
-            skip = 0
-            while True:
-                url = build_focus_monthly_url(
-                    window_start,
-                    window_end,
-                    skip=skip,
-                    top=page_size,
+        for window_start, window_end in iter_focus_windows(
+            start, end, max_days=window_days
+        ):
+            url = build_focus_monthly_url(
+                window_start,
+                window_end,
+                top=page_size,
+            )
+            payload = fetcher(url)
+            snapshot_index += 1
+            snapshots.save_payload(index=snapshot_index, url=url, payload=payload)
+            page = parse_focus_monthly_json(payload)
+            if len(page) >= page_size:
+                raise ValueError(
+                    "Focus response reached the configured row ceiling; "
+                    "reduce --window-days rather than relying on OData pagination "
+                    f"({window_start} through {window_end}, {len(page)} rows)"
                 )
-                payload = fetcher(url)
-                snapshot_index += 1
-                snapshots.save_payload(index=snapshot_index, url=url, payload=payload)
-                page = parse_focus_monthly_json(payload)
-                received += len(page)
-                for record in page:
-                    key = (record.survey_date, record.target_month)
-                    if key in seen:
-                        raise ValueError(
-                            "duplicate Focus record across pages/windows: "
-                            f"{record.survey_date} / {record.target_month:%Y-%m}"
-                        )
-                    seen.add(key)
-                    records.append(record)
-                if len(page) < page_size:
-                    break
-                skip += page_size
+            received += len(page)
+            for record in page:
+                key = (record.survey_date, record.target_month)
+                if key in seen:
+                    raise ValueError(
+                        "duplicate Focus record across date windows: "
+                        f"{record.survey_date} / {record.target_month:%Y-%m}"
+                    )
+                seen.add(key)
+                records.append(record)
 
         records.sort(key=lambda item: (item.survey_date, item.target_month))
         retrieved_at = clock()
