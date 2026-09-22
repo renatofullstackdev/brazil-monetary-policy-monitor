@@ -201,3 +201,20 @@ Sprint 6 adds a second BCB ingestion path using the Focus OData service. It stor
 ### Focus OData boundary
 
 The Focus collector deliberately avoids `$skip` pagination and `$orderby`. The Olinda resource is queried through bounded date windows, then validated and sorted locally. A response that reaches the configured row ceiling is treated as potentially truncated and is not persisted. This keeps completeness under the monitor's control instead of depending on provider pagination behavior.
+
+## 15. Contexto macro e parâmetros documentais da Sprint 7
+
+O coletor SGS tornou-se reutilizável por especificação de série. `update-macro` executa um `ingestion_run` independente para cada código, preserva snapshots brutos separados e só republica `overview.json` depois que todas as séries solicitadas terminam com sucesso. Uma falha intermediária pode deixar séries já persistidas no banco, com seus próprios registros de auditoria, mas não substitui a última visão geral coerente.
+
+Os parâmetros de meta, taxa neutra e hiato seguem outro caminho:
+
+```text
+publicação oficial
+  -> registro curado com referência exata
+  -> parameters (versionado)
+  -> publicador da visão geral
+```
+
+Isso impede que estimativas documentais sejam disfarçadas de observações de alta frequência. Também permite selecionar o último parâmetro que já estava disponível **e** efetivo na data de conhecimento.
+
+O publicador deriva IPCA/núcleo/serviços em 12 meses e IBC-Br m/m sem alterar as observações brutas. Taylor, Selic−Taylor e gap real são calculados somente na publicação. Nesta etapa, a Taylor tem apenas valor corrente; `observations` permanece vazio até que seja possível reconstruir seus insumos historicamente sem look-ahead.

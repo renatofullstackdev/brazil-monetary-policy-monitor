@@ -203,3 +203,30 @@ This output is a **derived proxy**. The median of each monthly distribution comp
 The policy horizon is not inferred mechanically from the date. It is an explicit, source-backed configuration because the Copom can change the relevant horizon as the policy window moves. The initial registry contains the transition from 2027-Q4 after the June 2026 meeting to 2028-Q1 from the August 2026 meeting onward.
 
 For Focus backfills, `Data` is a provider statistic date (`source_observation_at`). It is not backdated into `available_at`; the latter remains the first time this monitor actually retrieved the vintage unless a stronger publication timestamp is available.
+
+## 14. Insumos documentais e contexto doméstico da Sprint 7
+
+A meta, a taxa real neutra e o hiato não são armazenados como séries SGS. Eles são parâmetros documentais versionados porque têm natureza e cronologia próprias.
+
+Na configuração corrente da Sprint 7:
+
+- a meta contínua é 3,00% desde janeiro de 2025;
+- `r* = 5,00%` é a estimativa considerada no cenário de referência do Relatório de Política Monetária de junho de 2026;
+- o hiato de `0,4%` refere-se ao 2º trimestre de 2026 no mesmo relatório.
+
+`r*` e hiato são `estimated`. Nenhum dos dois é transformado em observação direta por estar sendo usado no cálculo.
+
+A Taylor prospectiva corrente pode combinar insumos com referências distintas, mas deve mostrá-las. O valor corrente não gera automaticamente uma série histórica: aplicar o último `r*` ou o último hiato a datas anteriores introduziria informação futura.
+
+O contexto macroeconômico inicial é mantido fora da fórmula de Taylor e inclui:
+
+- IPCA cheio em 12 meses, composto das variações mensais SGS 433;
+- núcleo de médias aparadas sem suavização em 12 meses, SGS 11426;
+- IPCA serviços em 12 meses, SGS 10844;
+- variação mensal do IBC-Br dessazonalizado, SGS 24364;
+- taxa de desocupação da PNAD Contínua, SGS 24369;
+- rendimento médio real habitual de todos os trabalhos, SGS 24380.
+
+Os acumulados em 12 meses só são publicados quando existem doze meses consecutivos. O núcleo escolhido é uma medida específica, identificada pelo nome; a interface não o rotula como "a inflação subjacente" de forma genérica.
+
+Consumo das famílias e FBCF permanecem fora desta sprint. A ausência é preferível a incorporar contratos ainda não homologados apenas para preencher a interface.

@@ -52,9 +52,9 @@ Detalhes: [`docs/architecture.md`](docs/architecture.md).
 
 ## Estado atual
 
-**Sprint 6 — Focus e horizonte relevante.**
+**Sprint 7 — inflação, atividade e trabalho.**
 
-O repositório já coleta a série oficial BCB SGS 432 (meta Selic) e as medianas mensais de IPCA da pesquisa Focus, preserva vintages e snapshots brutos, implementa o núcleo dos modelos monetários e publica um contrato JSON específico para a interface estática. A inflação esperada alinhada ao horizonte do Copom é publicada como cálculo derivado das medianas mensais, com a transformação e suas limitações explícitas. O simulador usa esse valor quando disponível; meta, taxa real neutra e hiato continuam indisponíveis até suas fontes serem incorporadas.
+O repositório coleta a meta Selic, expectativas Focus e seis séries domésticas de inflação, atividade e trabalho pelo BCB. Meta de inflação, taxa real neutra e hiato entram como parâmetros documentais versionados, com referência explícita ao ato ou ao Relatório de Política Monetária. Com esses insumos, o painel publica a Taylor prospectiva corrente, Selic−Taylor, juro real ex ante e gap monetário real, sem fabricar histórico para `r*` ou hiato. O contexto macro mostra IPCA, núcleo, serviços, IBC-Br, desocupação e rendimento real em seção separada da fórmula.
 
 ## Estrutura
 
@@ -184,9 +184,19 @@ Enquanto os insumos restantes da Sprint 7 ainda não estiverem incorporados, Tay
 
 A simulação é mantida apenas em memória: não usa SQLite, API de aplicação nem armazenamento persistente do navegador. Detalhes do contrato: [`docs/frontend-contract.md`](docs/frontend-contract.md).
 
+## Atualização do contexto doméstico
+
+Depois de Selic e Focus estarem carregados, execute:
+
+```bash
+./scripts/update-macro.sh
+```
+
+A primeira execução busca aproximadamente cinco anos por série; as seguintes reutilizam o banco e refazem apenas uma sobreposição recente. O comando também sincroniza os três parâmetros documentais e republica `web/data/overview.json` somente depois que todas as séries macro solicitadas forem atualizadas com sucesso.
+
 ## Próxima sprint
 
-Sprint 7 incorporará os insumos domésticos que faltam para completar o benchmark prospectivo e ampliar a leitura de inflação e atividade: meta de inflação, taxa real neutra, hiato, inflação observada/subjacente/serviços, IBC-Br e mercado de trabalho, respeitando a disponibilidade de fontes oficiais.
+Sprint 8 implementará a curva de juros, começando pela validação dos contratos oficiais do Tesouro e separando taxas nominais, reais e inflação implícita.
 
 ## Estado de implementação
 

@@ -171,3 +171,28 @@ operator and return misleading type errors such as `Edm.Boolean` versus
 both the historical integer representation (`0`/`1`) and boolean representation
 (`false`/`true`) and retains only the current-expectation basis locally. This
 keeps the economic selection independent from provider representation details.
+
+## Séries domésticas homologadas na Sprint 7
+
+A Sprint 7 reutiliza o coletor SGS já auditado e adiciona seis séries. Cada uma mantém código e documentação no metadata da própria série, embora compartilhem a fonte lógica `bcb.sgs`.
+
+| Chave interna | SGS | Conceito | Frequência | Uso no painel |
+| --- | ---: | --- | --- | --- |
+| `br.ipca.monthly` | 433 | IPCA, variação mensal | mensal | acumulado 12 meses |
+| `br.ipca.services.monthly` | 10844 | IPCA — serviços, variação mensal | mensal | acumulado 12 meses |
+| `br.ipca.core.trimmed_unsmoothed.monthly` | 11426 | núcleo de médias aparadas sem suavização | mensal | acumulado 12 meses |
+| `br.ibc_br.sa` | 24364 | IBC-Br com ajuste sazonal | mensal | variação m/m |
+| `br.unemployment.pnadc` | 24369 | taxa de desocupação — PNAD Contínua | mensal | valor observado mais recente |
+| `br.real_earnings.pnadc` | 24380 | rendimento médio real habitual — todos os trabalhos | mensal | valor observado mais recente |
+
+A produção continua consultando diretamente `api.bcb.gov.br`; nenhum servidor MCP ou catálogo de terceiros é dependência do pipeline. Implementações externas podem ser usadas em desenvolvimento como referência cruzada, nunca como substituto silencioso da fonte oficial.
+
+### Parâmetros documentais
+
+A Sprint 7 também registra, separadamente das séries SGS:
+
+- `br.inflation.target`: meta contínua de 3,00%, Resolução CMN nº 5.141/2024;
+- `br.neutral_real_rate.rpm`: 5,00%, RPM junho/2026, p. 65;
+- `br.output_gap.rpm`: 0,4%, 2º trimestre de 2026, RPM junho/2026, p. 68.
+
+Esses valores carregam URL, referência, período, metodologia, publicação e natureza (`observed` ou `estimated`). A sincronização é idempotente e não depende de scraping do PDF: os valores curados fazem parte do registro metodológico auditável e qualquer atualização exige nova versão explícita.

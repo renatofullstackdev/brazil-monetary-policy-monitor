@@ -125,3 +125,30 @@ O simulador reutiliza quatro séries já presentes no contrato como baseline qua
 Se alguma estiver `unavailable`, o respectivo campo inicia vazio. A interface não converte ausência em zero e não injeta fixture, exemplo ou default econômico.
 
 O resultado simulado não altera `overview.json` e não é enviado ao backend. `taylor_prospective` continua significando exclusivamente a série publicada pelo pipeline; a Taylor calculada a partir dos controles é apresentada separadamente como simulação.
+
+## Sprint 6 additions
+
+The overview contract now contains a top-level `policy_horizon` object when a source-backed Brazilian horizon is configured. Its fields include `reference`, `effective_from`, `window_start`, `window_end`, source metadata, and the selection method.
+
+`series.expected_inflation` becomes available only when twelve monthly Focus medians can be composed for the configured horizon. It is classified as `derived`. Its `latest.source_observation_at` identifies the Focus statistic date used for the latest calculation.
+
+The Taylor card remains unavailable until the remaining official/estimated inputs are present. A Focus ingestion must not make the interface imply that `r*`, the inflation target, or the output gap have already been loaded.
+
+## Adições da Sprint 7
+
+O objeto `series` passa a expor, além dos indicadores monetários:
+
+- `ipca_12m`;
+- `ipca_core_12m`;
+- `ipca_services_12m`;
+- `ibc_br_mom`;
+- `unemployment_rate`;
+- `real_earnings`.
+
+A tela agrupa esses indicadores em **Contexto macroeconômico**, separado das premissas da Taylor. Essa separação é semântica: contexto pode ajudar a investigar a decisão, mas não entra implicitamente na fórmula.
+
+`inflation_target`, `neutral_real_rate` e `output_gap` agora podem vir de registros de `parameters`. Seus metadados mantêm fonte e referência documental. `neutral_real_rate` e `output_gap` continuam `estimated`.
+
+Quando os quatro insumos estão disponíveis, `taylor_prospective.latest` contém o benchmark corrente e sua decomposição. A presença de `latest` não implica histórico: na Sprint 7, `taylor_prospective.observations` permanece vazio enquanto não houver vintages historicamente alinhados de taxa neutra e hiato. A interface informa essa limitação no painel histórico em vez de desenhar uma linha retroativa artificial.
+
+As novas unidades `percent`, `index` e `brl_real` têm formatação própria no navegador. Apenas `percent_per_year` recebe o sufixo visual `a.a.`.
