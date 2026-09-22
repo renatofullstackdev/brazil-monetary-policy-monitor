@@ -245,7 +245,7 @@ def update_focus_ipca(
     fetcher: FetchBytes = fetch_bytes,
     clock: Clock = utc_now,
     page_size: int = 10_000,
-    window_days: int = 90,
+    window_days: int = 30,
 ) -> dict[str, object]:
     """Collect monthly Focus IPCA medians and derive the Copom-horizon 12m proxy."""
 

@@ -14,7 +14,7 @@ FOCUS_MONTHLY_ENDPOINT = (
     "ExpectativaMercadoMensais"
 )
 DEFAULT_PAGE_SIZE = 10_000
-DEFAULT_WINDOW_DAYS = 90
+DEFAULT_WINDOW_DAYS = 30
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +75,7 @@ def build_focus_monthly_url(
         raise ValueError("top must be positive")
 
     filter_expression = (
-        "Indicador eq 'IPCA' and baseCalculo eq 0 "
+        "Indicador eq 'IPCA' "
         f"and Data ge '{start.isoformat()}' and Data le '{end.isoformat()}'"
     )
     query = urlencode(
@@ -107,8 +107,14 @@ def parse_focus_monthly_json(payload: bytes) -> list[FocusMonthlyRecord]:
             raise ValueError("Focus value entries must be objects")
         if raw.get("Indicador") != "IPCA":
             raise ValueError(f"unexpected Focus indicator: {raw.get('Indicador')!r}")
-        if raw.get("baseCalculo") != 0:
-            raise ValueError(f"unexpected Focus baseCalculo: {raw.get('baseCalculo')!r}")
+        raw_base = raw.get("baseCalculo")
+        if raw_base is True or raw_base == 1:
+            # The endpoint may expose baseCalculo as either an integer or a
+            # boolean. Base 1/true represents the five-business-day comparison
+            # basis, which is not the current-expectation series used here.
+            continue
+        if not (raw_base is False or raw_base == 0):
+            raise ValueError(f"unexpected Focus baseCalculo: {raw_base!r}")
 
         try:
             survey_date = date.fromisoformat(str(raw["Data"]))

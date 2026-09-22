@@ -22,14 +22,14 @@ SAMPLE = (FIXTURES / "focus_ipca_monthly_sample.json").read_bytes()
 
 
 class FocusCollectorTests(unittest.TestCase):
-    def test_url_filters_ipca_base_zero_and_date_window(self) -> None:
+    def test_url_filters_ipca_and_date_window_without_server_side_base_filter(self) -> None:
         url = build_focus_monthly_url(date(2026, 9, 1), date(2026, 9, 30), top=50)
         self.assertIn("ExpectativaMercadoMensais", url)
         self.assertIn("%24top=50", url)
         self.assertNotIn("%24skip", url)
         self.assertNotIn("%24orderby", url)
         self.assertIn("Indicador+eq+%27IPCA%27", url)
-        self.assertIn("baseCalculo+eq+0", url)
+        self.assertNotIn("baseCalculo+eq", url)
 
     def test_focus_windows_cover_range_without_overlap(self) -> None:
         windows = list(
@@ -39,6 +39,35 @@ class FocusCollectorTests(unittest.TestCase):
         self.assertEqual(windows[-1][1], date(2026, 7, 15))
         for previous, current in zip(windows, windows[1:]):
             self.assertEqual(previous[1].toordinal() + 1, current[0].toordinal())
+
+
+    def test_parser_accepts_boolean_base_false_and_discards_true(self) -> None:
+        payload = json.loads(SAMPLE)
+        current = dict(payload["value"][0])
+        current["baseCalculo"] = False
+        comparison = dict(current)
+        comparison["baseCalculo"] = True
+        comparison["Mediana"] = 99.9
+        payload["value"] = [comparison, current]
+
+        records = parse_focus_monthly_json(json.dumps(payload).encode())
+
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].median, Decimal(str(current["Mediana"])))
+        self.assertEqual(records[0].base_calculation, 0)
+
+    def test_parser_accepts_integer_base_zero_and_discards_one(self) -> None:
+        payload = json.loads(SAMPLE)
+        current = dict(payload["value"][0])
+        current["baseCalculo"] = 0
+        comparison = dict(current)
+        comparison["baseCalculo"] = 1
+        payload["value"] = [comparison, current]
+
+        records = parse_focus_monthly_json(json.dumps(payload).encode())
+
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].base_calculation, 0)
 
     def test_parser_preserves_survey_date_target_month_and_median(self) -> None:
         records = parse_focus_monthly_json(SAMPLE)

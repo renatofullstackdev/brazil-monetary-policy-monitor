@@ -198,7 +198,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--window-days",
         type=int,
         choices=range(1, 367),
-        default=90,
+        default=30,
         metavar="1..366",
         help="calendar days per Focus request (default: %(default)s)",
     )
