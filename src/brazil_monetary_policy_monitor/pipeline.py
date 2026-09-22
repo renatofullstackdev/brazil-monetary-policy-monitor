@@ -7,8 +7,14 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 import sqlite3
 
-from .collectors.bcb_sgs import SGSRecord, build_sgs_url, iter_date_windows, parse_sgs_json
-from .collectors.http import fetch_bytes
+from .collectors.bcb_sgs import (
+    SGSRecord,
+    build_sgs_url,
+    is_empty_sgs_range_error,
+    iter_date_windows,
+    parse_sgs_json,
+)
+from .collectors.http import ProviderFetchError, fetch_bytes
 from .db import initialize_database
 from .ingestion import (
     SELIC_SERIES_KEY,
@@ -124,7 +130,17 @@ def update_selic(
             start=1,
         ):
             url = build_sgs_url(SELIC_SGS_CODE, window_start, window_end)
-            payload = fetcher(url)
+            try:
+                payload = fetcher(url)
+            except ProviderFetchError as exc:
+                if not is_empty_sgs_range_error(exc):
+                    raise
+                # Preserve the provider's explicit empty-range response in the
+                # raw snapshot, but normalize it to zero observations.
+                snapshots.save_payload(
+                    index=index, url=url, payload=exc.response_body or b""
+                )
+                continue
             snapshots.save_payload(index=index, url=url, payload=payload)
             chunk_records = parse_sgs_json(payload)
             received += len(chunk_records)
@@ -556,7 +572,15 @@ def update_macro_context(
                     start=1,
                 ):
                     url = build_sgs_url(spec.code, window_start, window_end)
-                    payload = fetcher(url)
+                    try:
+                        payload = fetcher(url)
+                    except ProviderFetchError as exc:
+                        if not is_empty_sgs_range_error(exc):
+                            raise
+                        snapshots.save_payload(
+                            index=index, url=url, payload=exc.response_body or b""
+                        )
+                        continue
                     snapshots.save_payload(index=index, url=url, payload=payload)
                     chunk = parse_sgs_json(payload)
                     received += len(chunk)

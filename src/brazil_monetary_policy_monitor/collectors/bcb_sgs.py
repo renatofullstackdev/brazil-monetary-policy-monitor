@@ -8,6 +8,8 @@ from decimal import Decimal, InvalidOperation
 import json
 from urllib.parse import urlencode
 
+from .http import ProviderFetchError
+
 
 SGS_BASE_URL = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{code}/dados"
 
@@ -59,6 +61,32 @@ def build_sgs_url(code: int | str, start: date, end: date) -> str:
         }
     )
     return f"{SGS_BASE_URL.format(code=code)}?{params}"
+
+
+def is_empty_sgs_range_error(exc: BaseException) -> bool:
+    """Return whether BCB SGS explicitly reported that a valid range has no values.
+
+    SGS uses HTTP 404 with ``Value(s) not found`` for date intervals that do
+    not contain observations. This is normal for sparse/monthly series during
+    incremental refreshes, but no other 404 is silently accepted.
+    """
+
+    if not isinstance(exc, ProviderFetchError) or exc.status_code != 404:
+        return False
+    body = exc.response_body
+    if not body:
+        return False
+    try:
+        decoded = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    if not isinstance(decoded, dict):
+        return False
+    error = decoded.get("erro")
+    if not isinstance(error, dict):
+        return False
+    detail = error.get("detail")
+    return isinstance(detail, str) and "Value(s) not found" in detail
 
 
 def _parse_decimal(raw: object, *, row_number: int) -> Decimal:

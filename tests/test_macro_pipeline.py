@@ -7,6 +7,7 @@ import re
 import tempfile
 import unittest
 
+from brazil_monetary_policy_monitor.collectors.http import ProviderFetchError
 from brazil_monetary_policy_monitor.db import initialize_database
 from brazil_monetary_policy_monitor.macro_series import MACRO_SERIES
 from brazil_monetary_policy_monitor.pipeline import update_macro_context
@@ -135,6 +136,61 @@ class MacroPipelineTests(unittest.TestCase):
             self.assertTrue(all(item["records_inserted"] == 0 for item in second["series"]))
             self.assertTrue(all(item["records_unchanged"] == 12 for item in second["series"]))
             self.assertEqual(second["policy_inputs_unchanged"], 3)
+
+    def test_incremental_empty_sgs_window_is_a_valid_zero_record_refresh(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            now = datetime(2026, 9, 22, 15, tzinfo=timezone.utc)
+            empty_body = b'{"erro":{"statusCode":404,"detail":"br.gov.bcb.pec.sgs.comum.excecoes.SGSNegocioException: Value(s) not found"}}'
+
+            def empty_fetch(url: str) -> bytes:
+                raise ProviderFetchError(
+                    "failed to fetch empty SGS interval",
+                    url=url,
+                    status_code=404,
+                    response_body=empty_body,
+                )
+
+            result = update_macro_context(
+                database_path=root / "monitor.sqlite3",
+                raw_root=root / "raw",
+                published_dir=root / "published",
+                overview_path=root / "overview.json",
+                start=date(2026, 9, 18),
+                end=date(2026, 9, 22),
+                fetcher=empty_fetch,
+                clock=lambda: now,
+            )
+
+            self.assertEqual(result["status"], "succeeded")
+            self.assertTrue(all(item["records_received"] == 0 for item in result["series"]))
+            snapshots = list((root / "raw").rglob("chunk-*.json"))
+            self.assertEqual(len(snapshots), len(MACRO_SERIES))
+            self.assertIn("Value(s) not found", snapshots[0].read_text(encoding="utf-8"))
+
+    def test_unrelated_sgs_404_remains_fatal(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            def missing_endpoint(url: str) -> bytes:
+                raise ProviderFetchError(
+                    "missing endpoint",
+                    url=url,
+                    status_code=404,
+                    response_body=b'{"erro":{"statusCode":404,"detail":"Series not found"}}',
+                )
+
+            with self.assertRaises(ProviderFetchError):
+                update_macro_context(
+                    database_path=root / "monitor.sqlite3",
+                    raw_root=root / "raw",
+                    published_dir=root / "published",
+                    overview_path=root / "overview.json",
+                    start=date(2026, 9, 18),
+                    end=date(2026, 9, 22),
+                    fetcher=missing_endpoint,
+                    clock=lambda: datetime(2026, 9, 22, 15, tzinfo=timezone.utc),
+                )
 
 
 if __name__ == "__main__":

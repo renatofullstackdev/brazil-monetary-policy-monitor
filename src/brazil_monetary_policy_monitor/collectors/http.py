@@ -8,7 +8,25 @@ from urllib.request import Request, urlopen
 
 
 class ProviderFetchError(RuntimeError):
-    """Raised when an upstream provider cannot be fetched safely."""
+    """Raised when an upstream provider cannot be fetched safely.
+
+    HTTP failures retain the status code and response body so provider-specific
+    collectors can distinguish a documented empty-result response from an
+    actual transport or endpoint failure without parsing exception strings.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        url: str | None = None,
+        status_code: int | None = None,
+        response_body: bytes | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.url = url
+        self.status_code = status_code
+        self.response_body = response_body
 
 
 _USER_AGENT = "brazil-monetary-policy-monitor/0.1 (+official-data-collector)"
@@ -55,10 +73,35 @@ def fetch_bytes(
                 if status != 200:
                     raise ProviderFetchError(f"unexpected HTTP status {status} for {url}")
                 return response.read()
-        except (HTTPError, URLError, TimeoutError, OSError, ProviderFetchError) as exc:
+        except HTTPError as exc:
+            try:
+                response_body = exc.read()
+            except OSError:
+                response_body = b""
+            last_error = ProviderFetchError(
+                f"HTTP Error {exc.code}: {exc.reason}",
+                url=url,
+                status_code=exc.code,
+                response_body=response_body,
+            )
+            # Most client errors are deterministic. Retrying them only adds
+            # load and delays useful diagnostics. 408/429 can be transient.
+            if 400 <= exc.code < 500 and exc.code not in {408, 429}:
+                break
+            if attempt == retries:
+                break
+            time.sleep(backoff_seconds * (2**attempt))
+        except (URLError, TimeoutError, OSError, ProviderFetchError) as exc:
             last_error = exc
             if attempt == retries:
                 break
             time.sleep(backoff_seconds * (2**attempt))
 
-    raise ProviderFetchError(f"failed to fetch {url}: {last_error}") from last_error
+    if isinstance(last_error, ProviderFetchError):
+        raise ProviderFetchError(
+            f"failed to fetch {url}: {last_error}",
+            url=url,
+            status_code=last_error.status_code,
+            response_body=last_error.response_body,
+        ) from last_error
+    raise ProviderFetchError(f"failed to fetch {url}: {last_error}", url=url) from last_error
