@@ -105,3 +105,20 @@ class OverviewPublisherTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HorizonMetadataOverviewTests(unittest.TestCase):
+    def test_overview_exposes_source_backed_policy_horizon(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            connection = initialize_database(Path(directory) / "monitor.sqlite3")
+            try:
+                document = build_overview_document(
+                    connection,
+                    generated_at=datetime(2026, 9, 22, 12, tzinfo=timezone.utc),
+                )
+            finally:
+                connection.close()
+        self.assertEqual(document["policy_horizon"]["reference"], "2028-Q1")
+        self.assertEqual(document["policy_horizon"]["window_start"], "2027-04-01")
+        self.assertEqual(document["policy_horizon"]["window_end"], "2028-03-31")
+        self.assertEqual(document["policy_horizon"]["method"], "explicit_source_backed_registry")

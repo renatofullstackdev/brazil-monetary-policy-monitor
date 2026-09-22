@@ -1,0 +1,196 @@
+{
+  "value": [
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-11",
+      "DataReferencia": "04/2027",
+      "Mediana": 0.3,
+      "numeroRespondentes": 145,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-11",
+      "DataReferencia": "05/2027",
+      "Mediana": 0.31,
+      "numeroRespondentes": 144,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-11",
+      "DataReferencia": "06/2027",
+      "Mediana": 0.32,
+      "numeroRespondentes": 143,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-11",
+      "DataReferencia": "07/2027",
+      "Mediana": 0.3,
+      "numeroRespondentes": 142,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-11",
+      "DataReferencia": "08/2027",
+      "Mediana": 0.31,
+      "numeroRespondentes": 145,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-11",
+      "DataReferencia": "09/2027",
+      "Mediana": 0.32,
+      "numeroRespondentes": 144,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-11",
+      "DataReferencia": "10/2027",
+      "Mediana": 0.3,
+      "numeroRespondentes": 143,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-11",
+      "DataReferencia": "11/2027",
+      "Mediana": 0.31,
+      "numeroRespondentes": 142,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-11",
+      "DataReferencia": "12/2027",
+      "Mediana": 0.32,
+      "numeroRespondentes": 145,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-11",
+      "DataReferencia": "01/2028",
+      "Mediana": 0.3,
+      "numeroRespondentes": 144,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-11",
+      "DataReferencia": "02/2028",
+      "Mediana": 0.31,
+      "numeroRespondentes": 143,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-11",
+      "DataReferencia": "03/2028",
+      "Mediana": 0.32,
+      "numeroRespondentes": 142,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-18",
+      "DataReferencia": "04/2027",
+      "Mediana": 0.32,
+      "numeroRespondentes": 145,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-18",
+      "DataReferencia": "05/2027",
+      "Mediana": 0.33,
+      "numeroRespondentes": 144,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-18",
+      "DataReferencia": "06/2027",
+      "Mediana": 0.34,
+      "numeroRespondentes": 143,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-18",
+      "DataReferencia": "07/2027",
+      "Mediana": 0.32,
+      "numeroRespondentes": 142,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-18",
+      "DataReferencia": "08/2027",
+      "Mediana": 0.33,
+      "numeroRespondentes": 145,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-18",
+      "DataReferencia": "09/2027",
+      "Mediana": 0.34,
+      "numeroRespondentes": 144,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-18",
+      "DataReferencia": "10/2027",
+      "Mediana": 0.32,
+      "numeroRespondentes": 143,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-18",
+      "DataReferencia": "11/2027",
+      "Mediana": 0.33,
+      "numeroRespondentes": 142,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-18",
+      "DataReferencia": "12/2027",
+      "Mediana": 0.34,
+      "numeroRespondentes": 145,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-18",
+      "DataReferencia": "01/2028",
+      "Mediana": 0.32,
+      "numeroRespondentes": 144,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-18",
+      "DataReferencia": "02/2028",
+      "Mediana": 0.33,
+      "numeroRespondentes": 143,
+      "baseCalculo": 0
+    },
+    {
+      "Indicador": "IPCA",
+      "Data": "2026-09-18",
+      "DataReferencia": "03/2028",
+      "Mediana": 0.34,
+      "numeroRespondentes": 142,
+      "baseCalculo": 0
+    }
+  ]
+}
