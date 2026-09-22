@@ -71,6 +71,7 @@ function metadataRows(series) {
       ["Disponível no monitor desde", formatDateTime(series.latest.available_at)],
       ["Frequência", series.frequency ?? "—"],
       ["Transformação", series.transformation ?? "—"],
+      ...(series.latest.source_observation_at ? [["Data da estatística fonte", formatDate(series.latest.source_observation_at)]] : []),
       ["Fonte", series.source ? `${series.source.provider} — ${series.source.name}` : "—"],
     );
   } else {
@@ -158,7 +159,10 @@ export function renderOverview(payload) {
   generated.textContent = `Atualizado ${formatDateTime(payload.generated_at)}`;
   const dot = document.querySelector("#data-status");
   dot.classList.add(payload.availability.status === "complete" ? "ok" : "partial");
-  document.querySelector("#knowledge-mode").textContent = "Revisão mais recente conhecida";
+  const horizon = payload.policy_horizon;
+  document.querySelector("#knowledge-mode").textContent = horizon
+    ? `Revisão mais recente · horizonte ${formatDate(horizon.reference)}`
+    : "Revisão mais recente conhecida";
 
   const selic = series.selic;
   const taylor = series.taylor_prospective;

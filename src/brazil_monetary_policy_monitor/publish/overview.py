@@ -8,7 +8,8 @@ import sqlite3
 from typing import Any
 
 from ..db.observations import observations_latest
-from ..ingestion import SELIC_SERIES_KEY
+from ..ingestion import SELIC_SERIES_KEY, FOCUS_IPCA_POLICY_HORIZON_SERIES_KEY
+from ..horizons import resolve_br_policy_horizon
 from .atomic import write_json_atomic
 
 
@@ -123,6 +124,122 @@ def _selic_series(connection: sqlite3.Connection) -> dict[str, Any]:
     }
 
 
+def _focus_expected_inflation(connection: sqlite3.Connection) -> dict[str, Any]:
+    metadata = connection.execute(
+        """
+        SELECT s.key, s.title, s.description, s.unit_original, s.unit_normalized,
+               s.frequency, s.data_kind, s.transformation,
+               src.provider, src.name AS source_name, src.documentation_url
+        FROM series AS s
+        JOIN sources AS src ON src.id = s.source_id
+        WHERE s.key = ?
+        """,
+        (FOCUS_IPCA_POLICY_HORIZON_SERIES_KEY,),
+    ).fetchone()
+    if metadata is None:
+        return _unavailable(
+            key="expected_inflation",
+            label="Inflação esperada",
+            data_kind="derived",
+            unit="percent_per_year",
+            required_inputs=["focus.monthly.ipca", "policy_horizon"],
+            note="A coleta Focus e a composição no horizonte relevante entram na Sprint 6.",
+        )
+
+    rows = observations_latest(connection, FOCUS_IPCA_POLICY_HORIZON_SERIES_KEY)
+    if not rows:
+        return _unavailable(
+            key="expected_inflation",
+            label="Inflação esperada",
+            data_kind="derived",
+            unit="percent_per_year",
+            required_inputs=["focus.monthly.ipca", "policy_horizon"],
+            note=(
+                "Ainda não há doze medianas mensais Focus suficientes para compor "
+                "o horizonte relevante do Copom."
+            ),
+        )
+    latest_row = rows[-1]
+    return {
+        "key": "expected_inflation",
+        "series_key": metadata["key"],
+        "label": "Inflação esperada",
+        "title": metadata["title"],
+        "description": metadata["description"],
+        "status": "available",
+        "data_kind": metadata["data_kind"],
+        "unit": metadata["unit_normalized"],
+        "display_unit": metadata["unit_original"],
+        "frequency": metadata["frequency"],
+        "transformation": metadata["transformation"],
+        "required_inputs": [],
+        "note": (
+            "Proxy derivada pela composição das medianas mensais do Focus; não é "
+            "a mediana de previsões acumuladas por instituição."
+        ),
+        "latest": {
+            "date": latest_row["reference_period"],
+            "value": latest_row["value"],
+            "available_at": latest_row["available_at"],
+            "source_observation_at": latest_row["source_observation_at"],
+        },
+        "observations": [],
+        "source": {
+            "provider": metadata["provider"],
+            "name": metadata["source_name"],
+            "documentation_url": metadata["documentation_url"],
+        },
+    }
+
+
+def _policy_horizon_document(generated_at: datetime) -> dict[str, Any] | None:
+    try:
+        horizon = resolve_br_policy_horizon(generated_at.date())
+    except LookupError:
+        return None
+    return {
+        "country": horizon.country,
+        "reference": horizon.key,
+        "effective_from": horizon.effective_from.isoformat(),
+        "window_start": horizon.window_start.isoformat(),
+        "window_end": horizon.window_end.isoformat(),
+        "source_label": horizon.source_label,
+        "source_url": horizon.source_url,
+        "method": "explicit_source_backed_registry",
+    }
+
+
+def _ex_ante_real_rate(selic: dict[str, Any], expectation: dict[str, Any]) -> dict[str, Any]:
+    if selic["status"] != "available" or expectation["status"] != "available":
+        return _unavailable(
+            key="ex_ante_real_rate",
+            label="Juro real ex ante",
+            data_kind="derived",
+            unit="percent_per_year",
+            required_inputs=["selic", "expected_inflation"],
+            note="Depende da Selic e da expectativa de inflação no horizonte definido.",
+        )
+    value = float(selic["latest"]["value"]) - float(expectation["latest"]["value"])
+    return {
+        "key": "ex_ante_real_rate",
+        "label": "Juro real ex ante",
+        "status": "available",
+        "data_kind": "derived",
+        "unit": "percent_per_year",
+        "frequency": "on_publication",
+        "transformation": "selic_minus_policy_horizon_expected_inflation",
+        "required_inputs": [],
+        "note": "Aproximação simples: Selic nominal menos inflação esperada no horizonte relevante.",
+        "latest": {
+            "date": expectation["latest"]["date"],
+            "value": value,
+            "available_at": max(selic["latest"]["available_at"], expectation["latest"]["available_at"]),
+        },
+        "observations": [],
+        "source": None,
+    }
+
+
 def build_overview_document(
     connection: sqlite3.Connection,
     *,
@@ -130,8 +247,10 @@ def build_overview_document(
 ) -> dict[str, Any]:
     """Build a view contract without fabricating unavailable analytical inputs."""
 
+    selic = _selic_series(connection)
+    expected_inflation = _focus_expected_inflation(connection)
     series = {
-        "selic": _selic_series(connection),
+        "selic": selic,
         "taylor_prospective": _unavailable(
             key="taylor_prospective",
             label="Taylor prospectiva",
@@ -144,8 +263,8 @@ def build_overview_document(
                 "output_gap",
             ],
             note=(
-                "O cálculo será publicado quando expectativas, meta, taxa neutra "
-                "e hiato estiverem disponíveis com proveniência explícita."
+                "O cálculo será publicado quando meta, taxa neutra e hiato estiverem "
+                "disponíveis com proveniência explícita."
             ),
         ),
         "selic_minus_taylor": _unavailable(
@@ -156,14 +275,7 @@ def build_overview_document(
             required_inputs=["selic", "taylor_prospective"],
             note="Depende da Taylor prospectiva publicada.",
         ),
-        "ex_ante_real_rate": _unavailable(
-            key="ex_ante_real_rate",
-            label="Juro real ex ante",
-            data_kind="derived",
-            unit="percentage_points",
-            required_inputs=["selic", "expected_inflation"],
-            note="Depende da expectativa de inflação no horizonte definido.",
-        ),
+        "ex_ante_real_rate": _ex_ante_real_rate(selic, expected_inflation),
         "real_monetary_gap": _unavailable(
             key="real_monetary_gap",
             label="Gap monetário real",
@@ -172,14 +284,7 @@ def build_overview_document(
             required_inputs=["ex_ante_real_rate", "neutral_real_rate"],
             note="Depende do juro real ex ante e da taxa real neutra estimada.",
         ),
-        "expected_inflation": _unavailable(
-            key="expected_inflation",
-            label="Inflação esperada",
-            data_kind="survey",
-            unit="percent_per_year",
-            required_inputs=["focus.expected_inflation"],
-            note="A coleta de expectativas Focus entra na Sprint 6.",
-        ),
+        "expected_inflation": expected_inflation,
         "inflation_target": _unavailable(
             key="inflation_target",
             label="Meta de inflação",
@@ -213,6 +318,7 @@ def build_overview_document(
         "country": "BR",
         "generated_at": _iso_z(generated_at),
         "knowledge_mode": "latest_revision",
+        "policy_horizon": _policy_horizon_document(generated_at),
         "availability": {
             "status": "partial" if available < len(series) else "complete",
             "available_series": available,

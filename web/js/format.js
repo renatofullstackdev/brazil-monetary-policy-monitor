@@ -27,7 +27,12 @@ export function formatPoints(value) {
 
 export function formatDate(value) {
   if (!value) return "—";
-  return dateFormatter.format(new Date(`${value}T00:00:00Z`));
+  const quarter = /^(\d{4})-Q([1-4])$/.exec(value);
+  if (quarter) return `${quarter[2]}º tri ${quarter[1]}`;
+  const month = /^(\d{4})-(\d{2})$/.exec(value);
+  if (month) return `${month[2]}/${month[1]}`;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return Number.isNaN(parsed.getTime()) ? value : dateFormatter.format(parsed);
 }
 
 export function formatDateTime(value) {
