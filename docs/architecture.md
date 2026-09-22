@@ -39,7 +39,7 @@ A consequência principal é separar **aquisição e preparação** de **visuali
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ Frontend estático                                           │
-│ HTML | CSS | JavaScript | biblioteca de gráficos a definir │
+│ HTML | CSS | JavaScript | SVG nativo                     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -113,9 +113,11 @@ Essa separação evita transformar o painel em uma regressão opaca calibrada pa
 
 ## 8. Frontend
 
-A V1 será uma aplicação estática, sem framework JavaScript. O estado será pequeno e explícito: data, vintage, país, intervalo temporal e parâmetros da simulação.
+A V1 é uma aplicação estática, sem framework JavaScript. O estado permanece pequeno e explícito: data, vintage, país, intervalo temporal e, a partir da Sprint 5, parâmetros da simulação.
 
-A biblioteca de gráficos será decidida apenas na sprint de frontend. A preferência é por uma biblioteca consolidada e pequena operacionalmente; a decisão deve considerar versionamento, distribuição local versus CDN, acessibilidade e capacidade de séries temporais/curvas.
+Na Sprint 4, o único gráfico histórico é implementado em SVG nativo. Isso evita introduzir uma biblioteca completa para uma única série simples e mantém o site sem dependência de runtime externa. Não será construído um framework gráfico próprio: a escolha será reavaliada quando a Sprint 8 introduzir curvas de juros e requisitos mais complexos de interação. Ver ADR 0009.
+
+A tela consome exclusivamente `web/data/overview.json`, publicado a partir do SQLite. Séries ainda não incorporadas possuem estado explícito `unavailable`; o frontend não preenche lacunas com fixtures ou aproximações.
 
 ## 9. Operação
 
@@ -168,3 +170,24 @@ A primeira carga da SGS 432 parte de 05/03/1999. Embora o provedor permita até 
 O endpoint SGS usado não oferece `published_at` histórico por linha. `available_at` registra a primeira observação pelo monitor, não uma data de publicação inferida. Essa limitação é deliberadamente preservada para não fabricar vintages retroativos.
 
 Falhas antes da persistência deixam a execução como `failed`. Falhas posteriores à persistência usam `partial`. Em ambos os casos, um JSON previamente válido não é apagado. Ver ADR 0007.
+
+## 13. Visão geral implementada na Sprint 4
+
+O publicador da visão geral transforma o banco normalizado em um contrato estático versionado. A Selic já aparece como dado observado; Taylor prospectiva, juro real, gap monetário e suas premissas permanecem indisponíveis até que suas fontes oficiais sejam implementadas.
+
+A interface oferece:
+
+- cards centrais com classificação epistemológica;
+- metadados por indicador em diálogo acessível;
+- histórico com filtros de 1, 3, 5 e 10 anos ou série completa;
+- tabela textual das observações recentes;
+- erro explícito quando o JSON ainda não foi publicado;
+- layout responsivo sem consulta direta a provedores externos.
+
+O contrato está documentado em `docs/frontend-contract.md`.
+
+## 14. Simulador local implementado na Sprint 5
+
+A simulação permanece inteiramente no frontend. Os quatro parâmetros principais são inicializados a partir de valores publicados quando disponíveis; ausências permanecem vazias. O resultado não é enviado ao pipeline nem persistido no navegador ou no SQLite.
+
+A fórmula canônica é espelhada em um módulo JavaScript puro para resposta imediata aos controles. A implementação Python permanece como referência e pode ser comparada automaticamente com o módulo do navegador quando Node.js estiver disponível no ambiente de teste. Ver ADR 0010.
