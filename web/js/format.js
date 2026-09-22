@@ -42,8 +42,14 @@ export function formatDateTime(value) {
 
 export function formatValue(series) {
   if (series?.status !== "available" || !series.latest) return "—";
-  if (series.unit === "percentage_points") return formatPoints(series.latest.value);
-  return formatRate(series.latest.value);
+  const value = Number(series.latest.value);
+  if (series.unit === "percentage_points") return formatPoints(value);
+  if (["percent_per_year", "percent_per_month", "percent"].includes(series.unit)) return formatRate(value);
+  if (series.unit === "brl_real") {
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
+  }
+  if (series.unit === "index") return numberFormatter.format(value);
+  return Number.isFinite(value) ? numberFormatter.format(value) : "—";
 }
 
 export function dataKindLabel(kind) {

@@ -16,8 +16,17 @@ const ASSUMPTION_KEYS = [
   "output_gap",
 ];
 
+const CONTEXT_KEYS = [
+  "ipca_12m",
+  "ipca_core_12m",
+  "ipca_services_12m",
+  "ibc_br_mom",
+  "unemployment_rate",
+  "real_earnings",
+];
+
 function seriesUnitSuffix(series) {
-  return series.unit === "percentage_points" ? "" : " a.a.";
+  return series.unit === "percent_per_year" ? " a.a." : "";
 }
 
 function metricCard(series) {
@@ -34,10 +43,11 @@ function metricCard(series) {
   const value = document.createElement("span");
   value.className = "metric-value";
   value.textContent = formatValue(series);
-  if (series.status === "available" && series.unit !== "percentage_points") {
+  const suffix = seriesUnitSuffix(series);
+  if (series.status === "available" && suffix) {
     const unit = document.createElement("span");
     unit.className = "metric-unit";
-    unit.textContent = seriesUnitSuffix(series);
+    unit.textContent = suffix;
     value.append(unit);
   }
 
@@ -66,7 +76,7 @@ function metadataRows(series) {
   ];
   if (series.status === "available") {
     rows.push(
-      ["Valor", series.unit === "percentage_points" ? formatPoints(series.latest.value) : formatRate(series.latest.value)],
+      ["Valor", formatValue(series)],
       ["Referência", formatDate(series.latest.date)],
       ["Disponível no monitor desde", formatDateTime(series.latest.available_at)],
       ["Frequência", series.frequency ?? "—"],
@@ -150,6 +160,7 @@ export function renderOverview(payload) {
   const series = payload.series;
   renderCards(document.querySelector("#primary-cards"), PRIMARY_KEYS, series);
   renderCards(document.querySelector("#assumption-cards"), ASSUMPTION_KEYS, series);
+  renderCards(document.querySelector("#context-cards"), CONTEXT_KEYS, series);
 
   document.querySelectorAll("[data-series-key]").forEach((button) => {
     button.addEventListener("click", () => showMetadata(series[button.dataset.seriesKey]));
@@ -170,9 +181,11 @@ export function renderOverview(payload) {
   if (taylor.status !== "available") legend.classList.add("unavailable");
 
   const message = document.querySelector("#history-message");
-  message.textContent = taylor.status === "available"
-    ? ""
-    : "A Taylor prospectiva será adicionada ao histórico quando todos os seus insumos oficiais estiverem disponíveis.";
+  message.textContent = taylor.status !== "available"
+    ? "A Taylor prospectiva será adicionada quando todos os seus insumos documentados estiverem disponíveis."
+    : taylor.observations.length === 0
+      ? "O benchmark corrente já está disponível. O histórico da Taylor permanece vazio até existirem vintages historicamente alinhados de r* e hiato."
+      : "";
 
   const chartContainer = document.querySelector("#history-chart");
   const tableBody = document.querySelector("#history-table-body");
