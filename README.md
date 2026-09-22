@@ -52,9 +52,9 @@ Detalhes: [`docs/architecture.md`](docs/architecture.md).
 
 ## Estado atual
 
-**Sprint 4 — primeira visão geral funcional.**
+**Sprint 6 — Focus e horizonte relevante.**
 
-O repositório já coleta a série oficial BCB SGS 432 (meta Selic), preserva vintages e snapshots brutos, implementa o núcleo dos modelos monetários e publica um contrato JSON específico para a interface estática. A primeira tela mostra a Selic real, histórico, proveniência e metadados; indicadores que ainda dependem de fontes futuras permanecem explicitamente indisponíveis em vez de receber valores artificiais.
+O repositório já coleta a série oficial BCB SGS 432 (meta Selic) e as medianas mensais de IPCA da pesquisa Focus, preserva vintages e snapshots brutos, implementa o núcleo dos modelos monetários e publica um contrato JSON específico para a interface estática. A inflação esperada alinhada ao horizonte do Copom é publicada como cálculo derivado das medianas mensais, com a transformação e suas limitações explícitas. O simulador usa esse valor quando disponível; meta, taxa real neutra e hiato continuam indisponíveis até suas fontes serem incorporadas.
 
 ## Estrutura
 
@@ -180,13 +180,13 @@ Sirva a pasta estática por HTTP:
 
 Acesse `http://127.0.0.1:8000/`. Abrir `web/index.html` diretamente por `file://` não é suportado porque o navegador precisa carregar `web/data/overview.json` por `fetch`.
 
-Na Sprint 4 somente a Selic possui todos os dados necessários. Taylor prospectiva, juro real, gap monetário, inflação esperada, meta, taxa neutra e hiato são exibidos como indisponíveis até suas respectivas fontes serem incorporadas. Isso é deliberado: a interface nunca usa fixtures como se fossem dados oficiais.
+Enquanto os insumos restantes da Sprint 7 ainda não estiverem incorporados, Taylor prospectiva e gap monetário continuam indisponíveis. A expectativa de inflação passa a vir do Focus e, quando Selic e Focus estiverem carregados, o juro real ex ante já pode ser calculado. O simulador deixa os campos ausentes vazios e só calcula depois que o usuário informar os quatro valores. Quando as séries oficiais existirem, os mesmos controles abrirão com os valores publicados e poderão ser restaurados por um único comando.
 
-Detalhes do contrato: [`docs/frontend-contract.md`](docs/frontend-contract.md).
+A simulação é mantida apenas em memória: não usa SQLite, API de aplicação nem armazenamento persistente do navegador. Detalhes do contrato: [`docs/frontend-contract.md`](docs/frontend-contract.md).
 
 ## Próxima sprint
 
-Sprint 5 acrescentará o simulador local com quatro controles — inflação, meta, taxa real neutra e hiato — sem persistir cenários nem alterar os valores oficiais publicados.
+Sprint 7 incorporará os insumos domésticos que faltam para completar o benchmark prospectivo e ampliar a leitura de inflação e atividade: meta de inflação, taxa real neutra, hiato, inflação observada/subjacente/serviços, IBC-Br e mercado de trabalho, respeitando a disponibilidade de fontes oficiais.
 
 ## Estado de implementação
 
@@ -194,4 +194,17 @@ Sprint 5 acrescentará o simulador local com quatro controles — inflação, me
 - Sprint 1: persistência, proveniência e vintages — concluída;
 - Sprint 2: primeiro pipeline oficial BCB/SGS — concluída;
 - Sprint 3: núcleo monetário (Taylor, postura real e decomposição) — concluída;
-- Sprint 4: contrato JSON e primeira interface estática — concluída.
+- Sprint 4: contrato JSON e primeira interface estática — concluída;
+- Sprint 5: simulador local da Taylor prospectiva — concluída.
+
+### Focus expectations (Sprint 6)
+
+Update the official Focus IPCA monthly medians and the horizon-aligned derived expectation with:
+
+```bash
+./scripts/update-focus.sh
+```
+
+The first run intentionally backfills only the last two years by default. This is an operational default, not a claim about the beginning of the Focus database. Use `--start YYYY-MM-DD` for a deeper historical backfill. Subsequent runs overlap recent source dates to capture revisions.
+
+The dashboard distinguishes the Focus survey rows from the compounded policy-horizon proxy and does not backdate historical API rows into public-availability timestamps.

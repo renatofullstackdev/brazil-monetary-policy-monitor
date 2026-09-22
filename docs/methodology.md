@@ -72,7 +72,9 @@ A experiência principal permite alterar somente:
 
 `α`, `β`, `ρ`, medida de inflação, método do hiato e horizonte ficam em modo avançado.
 
-Valores simulados nunca sobrescrevem valores oficiais ou persistidos.
+Valores simulados nunca sobrescrevem valores oficiais ou persistidos. Na Sprint 5, os cenários existem apenas em memória no navegador e são descartados ao recarregar a página. Quando um insumo publicado ainda não existe, o controle inicia vazio em vez de receber uma hipótese implícita.
+
+Os controles deslizantes possuem limites amplos apenas como proteção de interface. Esses limites não representam intervalo de confiança, faixa histórica ou julgamento de plausibilidade econômica.
 
 ## 5. Inflação
 
@@ -147,3 +149,57 @@ Sempre que possível, cálculos históricos destinados a avaliar decisões passa
 ## 12. Limite interpretativo
 
 O painel fornece evidência e benchmarks. Não classifica decisões do Copom ou do Federal Reserve como corretas/incorretas e não atribui causalidade apenas por correlação temporal.
+
+## 13. Contrato numérico dos modelos implementados
+
+A partir da Sprint 3, o núcleo analítico usa pontos percentuais em todas as taxas e gaps. Assim:
+
+```text
+4.5 = 4,5%
+```
+
+e não `0.045`.
+
+As funções `classical_taylor` e `prospective_taylor` mantêm `α = 0.5` e `β = 0.5` por definição. A função genérica `taylor_rule` admite coeficientes explícitos somente para especificações nomeadas ou simulações avançadas.
+
+A Taylor prospectiva não decide qual expectativa é economicamente correta. Ela recebe uma expectativa já selecionada pela camada de dados. A futura integração com Focus deverá registrar horizonte, data de conhecimento e fonte antes de chamar o modelo.
+
+A Taylor inercial implementa:
+
+```text
+i_t = ρ i_(t-1) + (1 - ρ) i_taylor
+```
+
+com `0 <= ρ <= 1`. Os extremos são aceitos porque têm interpretação transparente: `ρ = 0` reproduz integralmente a Taylor subjacente e `ρ = 1` mantém integralmente a taxa anterior.
+
+O juro real ex ante da V1 permanece a aproximação linear:
+
+```text
+r_ex_ante = i - E[π]
+```
+
+O gap monetário real é:
+
+```text
+gap_real = r_ex_ante - r*
+```
+
+Nenhuma dessas duas medidas deve ser apresentada como observação direta: ambas são cálculos derivados, e o gap ainda depende de `r*`, que é estimado.
+
+Os cenários em `tests/fixtures/monetary_model_scenarios.json` existem exclusivamente para regressão numérica. Eles não são dados oficiais nem substituem as futuras séries Focus, de hiato ou de taxa neutra.
+
+## Focus inflation and the relevant policy horizon
+
+The canonical prospective input must distinguish the market-expectation source from the transformation used to align it with the Copom horizon.
+
+The monitor stores raw monthly IPCA medians from the Focus `ExpectativaMercadoMensais` endpoint as survey data. For a policy horizon expressed as a quarter, it selects the twelve reference months ending in that quarter and computes:
+
+```text
+100 * (Π(1 + monthly_median / 100) - 1)
+```
+
+This output is a **derived proxy**. The median of each monthly distribution compounded across months is not, in general, equal to the median of institution-level cumulative twelve-month forecasts. The UI and metadata must preserve that distinction.
+
+The policy horizon is not inferred mechanically from the date. It is an explicit, source-backed configuration because the Copom can change the relevant horizon as the policy window moves. The initial registry contains the transition from 2027-Q4 after the June 2026 meeting to 2028-Q1 from the August 2026 meeting onward.
+
+For Focus backfills, `Data` is a provider statistic date (`source_observation_at`). It is not backdated into `available_at`; the latter remains the first time this monitor actually retrieved the vintage unless a stronger publication timestamp is available.
