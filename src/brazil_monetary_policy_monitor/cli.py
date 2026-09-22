@@ -15,8 +15,14 @@ from .collectors.http import (
     DEFAULT_HTTP_TIMEOUT,
     fetch_bytes,
 )
-from .ingestion import ensure_bcb_sgs_selic_metadata
-from .pipeline import DEFAULT_WINDOW_YEARS, resolve_incremental_start, update_selic
+from .ingestion import ensure_bcb_sgs_selic_metadata, ensure_bcb_focus_metadata
+from .pipeline import (
+    DEFAULT_WINDOW_YEARS,
+    resolve_focus_incremental_start,
+    resolve_incremental_start,
+    update_focus_ipca,
+    update_selic,
+)
 from .publish import publish_overview_json
 
 
@@ -62,6 +68,43 @@ def _update_selic(args: argparse.Namespace) -> int:
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
+
+
+def _update_focus(args: argparse.Namespace) -> int:
+    end = args.end or date.today()
+    if args.start is None:
+        connection = initialize_database(args.database)
+        try:
+            ensure_bcb_focus_metadata(connection)
+            start = resolve_focus_incremental_start(
+                connection,
+                end=end,
+                overlap_days=args.overlap_days,
+                initial_lookback_days=args.initial_lookback_days,
+            )
+        finally:
+            connection.close()
+    else:
+        start = args.start
+
+    fetcher = partial(
+        fetch_bytes,
+        timeout=args.timeout,
+        retries=args.retries,
+        backoff_seconds=args.backoff_seconds,
+    )
+    result = update_focus_ipca(
+        database_path=args.database,
+        raw_root=args.raw_dir,
+        published_path=args.output,
+        overview_path=args.overview_output,
+        start=start,
+        end=end,
+        fetcher=fetcher,
+        page_size=args.page_size,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
 
 
 def _publish_overview(args: argparse.Namespace) -> int:
@@ -128,6 +171,32 @@ def build_parser() -> argparse.ArgumentParser:
         help="initial exponential retry backoff in seconds (default: %(default)s)",
     )
     selic.set_defaults(handler=_update_selic)
+
+    focus = subparsers.add_parser(
+        "update-focus",
+        help="Collect Focus monthly IPCA medians and derive the Copom-horizon expectation",
+    )
+    focus.add_argument("--database", type=Path, default=Path("data/database/monitor.sqlite3"))
+    focus.add_argument("--raw-dir", type=Path, default=Path("data/raw"))
+    focus.add_argument(
+        "--output",
+        type=Path,
+        default=Path("data/published/br-focus-ipca-policy-horizon.json"),
+    )
+    focus.add_argument(
+        "--overview-output",
+        type=Path,
+        default=Path("web/data/overview.json"),
+    )
+    focus.add_argument("--start", type=_date_argument)
+    focus.add_argument("--end", type=_date_argument)
+    focus.add_argument("--overlap-days", type=int, default=21)
+    focus.add_argument("--initial-lookback-days", type=int, default=730)
+    focus.add_argument("--page-size", type=int, default=10000)
+    focus.add_argument("--timeout", type=float, default=DEFAULT_HTTP_TIMEOUT)
+    focus.add_argument("--retries", type=int, default=DEFAULT_HTTP_RETRIES)
+    focus.add_argument("--backoff-seconds", type=float, default=DEFAULT_HTTP_BACKOFF_SECONDS)
+    focus.set_defaults(handler=_update_focus)
 
     overview = subparsers.add_parser(
         "publish-overview",

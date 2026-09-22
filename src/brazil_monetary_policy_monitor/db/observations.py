@@ -11,7 +11,7 @@ WITH ranked AS (
         o.*,
         ROW_NUMBER() OVER (
             PARTITION BY o.series_id, o.reference_period
-            ORDER BY o.available_at DESC, o.first_seen_at DESC, o.id DESC
+            ORDER BY o.available_at DESC, COALESCE(o.source_observation_at, '') DESC, o.first_seen_at DESC, o.id DESC
         ) AS revision_rank
     FROM observations AS o
     JOIN series AS s ON s.id = o.series_id
@@ -36,7 +36,7 @@ ranked AS (
         eligible.*,
         ROW_NUMBER() OVER (
             PARTITION BY series_id, reference_period
-            ORDER BY available_at DESC, first_seen_at DESC, id DESC
+            ORDER BY available_at DESC, COALESCE(source_observation_at, '') DESC, first_seen_at DESC, id DESC
         ) AS revision_rank
     FROM eligible
 )
