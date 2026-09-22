@@ -1,16 +1,22 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+from decimal import Decimal
 import json
 from pathlib import Path
 import re
 import tempfile
+from urllib.parse import parse_qs, urlparse
 import unittest
 
 from brazil_monetary_policy_monitor.collectors.http import ProviderFetchError
 from brazil_monetary_policy_monitor.db import initialize_database
 from brazil_monetary_policy_monitor.macro_series import MACRO_SERIES
-from brazil_monetary_policy_monitor.pipeline import update_macro_context
+from brazil_monetary_policy_monitor.collectors.bcb_sgs import SGSRecord
+from brazil_monetary_policy_monitor.pipeline import (
+    _coalesce_identical_cross_chunk_records,
+    update_macro_context,
+)
 from brazil_monetary_policy_monitor.publish import build_overview_document
 
 
@@ -191,6 +197,67 @@ class MacroPipelineTests(unittest.TestCase):
                     fetcher=missing_endpoint,
                     clock=lambda: datetime(2026, 9, 22, 15, tzinfo=timezone.utc),
                 )
+
+    def test_monthly_queries_align_explicit_start_to_first_day_of_month(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            urls: list[str] = []
+
+            def capture_empty(url: str) -> bytes:
+                urls.append(url)
+                return b"[]"
+
+            update_macro_context(
+                database_path=root / "monitor.sqlite3",
+                raw_root=root / "raw",
+                published_dir=root / "published",
+                overview_path=root / "overview.json",
+                start=date(2021, 9, 18),
+                end=date(2023, 9, 22),
+                fetcher=capture_empty,
+                clock=lambda: datetime(2026, 9, 22, 15, tzinfo=timezone.utc),
+                window_years=1,
+            )
+
+            first_series_urls = urls[:3]
+            intervals = []
+            for url in first_series_urls:
+                query = parse_qs(urlparse(url).query)
+                intervals.append((query["dataInicial"][0], query["dataFinal"][0]))
+            self.assertEqual(
+                intervals,
+                [
+                    ("01/09/2021", "31/08/2022"),
+                    ("01/09/2022", "31/08/2023"),
+                    ("01/09/2023", "22/09/2023"),
+                ],
+            )
+
+    def test_identical_cross_chunk_month_is_coalesced(self) -> None:
+        records = [
+            SGSRecord(date(2022, 9, 1), Decimal("0.50")),
+            SGSRecord(date(2022, 8, 1), Decimal("0.40")),
+            SGSRecord(date(2022, 9, 1), Decimal("0.50")),
+        ]
+
+        result = _coalesce_identical_cross_chunk_records(records)
+
+        self.assertEqual(
+            result,
+            [
+                SGSRecord(date(2022, 8, 1), Decimal("0.40")),
+                SGSRecord(date(2022, 9, 1), Decimal("0.50")),
+            ],
+        )
+
+    def test_conflicting_cross_chunk_month_remains_fatal(self) -> None:
+        records = [
+            SGSRecord(date(2022, 9, 1), Decimal("0.50")),
+            SGSRecord(date(2022, 9, 1), Decimal("0.51")),
+        ]
+
+        with self.assertRaisesRegex(ValueError, "conflicting duplicate reference date"):
+            _coalesce_identical_cross_chunk_records(records)
 
 
 if __name__ == "__main__":

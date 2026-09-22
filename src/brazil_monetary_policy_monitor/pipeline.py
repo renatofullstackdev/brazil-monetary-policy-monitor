@@ -84,6 +84,36 @@ def _validate_cross_chunk_records(records: list[SGSRecord]) -> list[SGSRecord]:
     return records
 
 
+def _month_start(value: date) -> date:
+    """Return the first calendar day of the month containing ``value``."""
+
+    return value.replace(day=1)
+
+
+def _coalesce_identical_cross_chunk_records(records: list[SGSRecord]) -> list[SGSRecord]:
+    """Collapse identical duplicate observations while rejecting conflicts.
+
+    SGS monthly series can return the same month from two adjacent date
+    queries when a chunk boundary cuts through that month.  Repeating the
+    exact same date/value pair is transport-level overlap, not a revision.
+    A different value for the same reference date remains an error because
+    accepting it would make the chosen vintage depend on chunk order.
+    """
+
+    records.sort(key=lambda record: record.reference_date)
+    coalesced: list[SGSRecord] = []
+    for record in records:
+        if not coalesced or coalesced[-1].reference_date != record.reference_date:
+            coalesced.append(record)
+            continue
+        if coalesced[-1].value != record.value:
+            raise ValueError(
+                "conflicting duplicate reference date across provider chunks: "
+                f"{record.reference_date}"
+            )
+    return coalesced
+
+
 def update_selic(
     *,
     database_path: str | Path,
@@ -549,6 +579,10 @@ def update_macro_context(
                 overlap_days=overlap_days,
                 initial_lookback_days=initial_lookback_days,
             )
+            # Every Sprint 7 context series is monthly.  Align the query to
+            # the first day of its starting month so annual SGS chunks never
+            # split a reference month across two requests.
+            series_start = _month_start(series_start)
             started_at = clock()
             run_id = start_ingestion_run(
                 connection,
@@ -586,7 +620,7 @@ def update_macro_context(
                     received += len(chunk)
                     records.extend(chunk)
 
-                records = _validate_cross_chunk_records(records)
+                records = _coalesce_identical_cross_chunk_records(records)
                 retrieved_at = clock()
                 inserted, unchanged = persist_sgs_records(
                     connection,

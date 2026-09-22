@@ -187,6 +187,8 @@ A Sprint 7 reutiliza o coletor SGS já auditado e adiciona seis séries. Cada um
 
 A produção continua consultando diretamente `api.bcb.gov.br`; nenhum servidor MCP ou catálogo de terceiros é dependência do pipeline. Implementações externas podem ser usadas em desenvolvimento como referência cruzada, nunca como substituto silencioso da fonte oficial.
 
+As seis séries desta etapa são mensais. O SGS pode devolver a mesma observação mensal quando duas consultas adjacentes cortam o mesmo mês, ainda que os intervalos de dias não se sobreponham. Por isso o pipeline macro normaliza o início de cada coleta para o primeiro dia do mês e cria chunks anuais em fronteiras mensais. Como defesa adicional, uma repetição entre chunks só é coalescida quando data e valor são idênticos; a mesma data com valores distintos continua sendo erro de ingestão. Essa tolerância não é aplicada à Selic diária.
+
 ### Parâmetros documentais
 
 A Sprint 7 também registra, separadamente das séries SGS:
