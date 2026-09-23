@@ -513,3 +513,62 @@ th { color: var(--muted); font-weight: 650; }
     grid-template-columns: 1fr 5.8rem 1rem;
   }
 }
+
+/* Sprint 8 — Tesouro Direto yield-curve proxy */
+.yield-curve-section {
+  padding: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.yield-curve-heading { align-items: start; }
+.curve-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.curve-compare-controls {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  color: var(--muted);
+  font-size: .82rem;
+}
+.curve-compare-controls select,
+.curve-compare-controls input {
+  min-height: 2.35rem;
+  padding: .35rem .55rem;
+  color: var(--text);
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.metric-grid-curve { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.curve-metric {
+  padding: .9rem 1rem;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.curve-metric span { display: block; color: var(--muted); font-size: .78rem; }
+.curve-metric strong { display: block; margin-top: .3rem; font-size: 1.45rem; }
+.curve-chart .curve-current-line { stroke: var(--series-selic); }
+.curve-chart .curve-comparison-line { stroke: var(--series-taylor); stroke-dasharray: 6 4; }
+.curve-chart .curve-current-dot { fill: var(--series-selic); }
+.curve-chart .curve-comparison-dot { fill: var(--series-taylor); }
+.curve-chart .axis-title { font-size: 10px; }
+.curve-method-note {
+  margin: .8rem 0 0;
+  color: var(--muted);
+  font-size: .78rem;
+}
+@media (max-width: 680px) {
+  .curve-toolbar, .curve-compare-controls { align-items: stretch; flex-direction: column; }
+  .curve-toolbar { display: flex; }
+  .curve-compare-controls { width: 100%; }
+  .curve-compare-controls select, .curve-compare-controls input { width: 100%; }
+  .metric-grid-curve { grid-template-columns: 1fr; }
+}

@@ -167,6 +167,63 @@
       </details>
     </section>
 
+
+    <section aria-labelledby="curva-title" class="yield-curve-section">
+      <div class="section-heading yield-curve-heading">
+        <div>
+          <p class="section-kicker">Mercado</p>
+          <h2 id="curva-title">Curva de juros dos títulos ofertados</h2>
+          <p class="section-intro">Proxy construída com as taxas de compra do Tesouro Direto. Não é uma curva zero-cupom nem uma previsão pura de inflação.</p>
+        </div>
+        <p id="yield-curve-date" class="context-label">Aguardando dados…</p>
+      </div>
+
+      <div id="yield-curve-unavailable" class="error-panel" hidden></div>
+      <div id="yield-curve-content">
+        <div class="curve-toolbar">
+          <div id="curve-kind-controls" class="range-controls" role="group" aria-label="Tipo de curva">
+            <button type="button" data-curve-kind="nominal" aria-pressed="true">Nominal</button>
+            <button type="button" data-curve-kind="real" aria-pressed="false">Real</button>
+            <button type="button" data-curve-kind="implicit" aria-pressed="false">Inflação implícita</button>
+          </div>
+          <div class="curve-compare-controls">
+            <label for="curve-compare">Comparar com</label>
+            <select id="curve-compare">
+              <option value="none">Sem comparação</option>
+              <option value="one_month">1 mês antes</option>
+              <option value="one_year">1 ano antes</option>
+              <option value="previous_copom">Copom anterior</option>
+              <option value="custom">Data personalizada</option>
+            </select>
+            <label class="sr-only" for="curve-custom-date">Data personalizada</label>
+            <input id="curve-custom-date" type="date" hidden>
+          </div>
+        </div>
+
+        <div id="yield-curve-metrics" class="metric-grid metric-grid-curve" aria-live="polite"></div>
+
+        <div class="chart-panel">
+          <div id="yield-curve-legend" class="chart-legend" aria-label="Curvas exibidas"></div>
+          <div id="yield-curve-note" class="inline-note"></div>
+          <div id="yield-curve-chart" class="chart curve-chart" role="img" aria-label="Curva de juros por prazo até o vencimento"></div>
+          <p id="yield-curve-summary" class="sr-only" aria-live="polite"></p>
+        </div>
+
+        <details class="data-table-panel">
+          <summary>Tabela da curva selecionada</summary>
+          <div class="table-wrap">
+            <table>
+              <caption class="sr-only">Pontos da curva de juros selecionada</caption>
+              <thead><tr><th scope="col">Prazo</th><th scope="col">Atual</th><th scope="col">Comparação</th></tr></thead>
+              <tbody id="yield-curve-table-body"></tbody>
+            </table>
+          </div>
+        </details>
+
+        <p class="curve-method-note">Inflação implícita = relação de Fisher entre taxas nominal e real interpoladas no mesmo prazo. A interpolação é linear e somente entre vencimentos observados; não há extrapolação.</p>
+      </div>
+    </section>
+
     <section class="method-note" aria-labelledby="leitura-title">
       <div>
         <p class="section-kicker">Como ler</p>

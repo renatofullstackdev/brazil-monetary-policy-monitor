@@ -19,3 +19,14 @@ export function validateOverview(payload) {
     throw new Error("Contrato overview sem coleção de séries.");
   }
 }
+
+
+export async function loadYieldCurve(url = "./data/yield-curve.json") {
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Falha ao carregar ${url}: HTTP ${response.status}`);
+  const payload = await response.json();
+  if (!payload || payload.schema_version !== 1 || payload.view !== "yield_curve") {
+    throw new Error("Contrato yield_curve não suportado.");
+  }
+  return payload;
+}
