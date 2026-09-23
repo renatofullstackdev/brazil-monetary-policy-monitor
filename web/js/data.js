@@ -41,3 +41,14 @@ export async function loadCreditTransmission(url = "./data/credit-transmission.j
   }
   return payload;
 }
+
+
+export async function loadFiscal(url = "./data/fiscal.json") {
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Falha ao carregar ${url}: HTTP ${response.status}`);
+  const payload = await response.json();
+  if (!payload || payload.schema_version !== 1 || payload.view !== "fiscal") {
+    throw new Error("Contrato fiscal não suportado.");
+  }
+  return payload;
+}

@@ -219,6 +219,51 @@
     </section>
 
 
+    <section aria-labelledby="fiscal-title" class="fiscal-section">
+      <div class="section-heading fiscal-heading">
+        <div>
+          <p class="section-kicker">Fiscal</p>
+          <h2 id="fiscal-title">O fiscal pressiona demanda ou prêmio?</h2>
+          <p class="section-intro">Fluxos fiscais, juros nominais, DBGG e perfil da Dívida Pública Federal aparecem separados. O painel não atribui o resultado nominal exclusivamente à Selic.</p>
+        </div>
+        <p id="fiscal-date" class="context-label">Aguardando dados…</p>
+      </div>
+
+      <div id="fiscal-unavailable" class="error-panel" hidden></div>
+      <div id="fiscal-content">
+        <div class="credit-toolbar">
+          <div id="fiscal-mode-controls" class="range-controls" role="group" aria-label="Visão fiscal">
+            <button type="button" data-fiscal-mode="flows" aria-pressed="true">Fluxos</button>
+            <button type="button" data-fiscal-mode="debt" aria-pressed="false">DBGG</button>
+          </div>
+          <div id="fiscal-range-controls" class="range-controls" role="group" aria-label="Período do gráfico fiscal">
+            <button type="button" data-fiscal-range="1" aria-pressed="false">1A</button>
+            <button type="button" data-fiscal-range="3" aria-pressed="false">3A</button>
+            <button type="button" data-fiscal-range="5" aria-pressed="true">5A</button>
+            <button type="button" data-fiscal-range="10" aria-pressed="false">10A</button>
+            <button type="button" data-fiscal-range="all" aria-pressed="false">Tudo</button>
+          </div>
+        </div>
+        <div id="fiscal-metrics" class="metric-grid metric-grid-fiscal" aria-live="polite"></div>
+        <div class="chart-panel">
+          <div id="fiscal-legend" class="chart-legend" aria-label="Séries fiscais exibidas"></div>
+          <div id="fiscal-note" class="inline-note"></div>
+          <div id="fiscal-chart" class="chart fiscal-chart" role="img" aria-label="Histórico dos indicadores fiscais"></div>
+        </div>
+        <details class="data-table-panel">
+          <summary>Tabela das observações recentes</summary>
+          <div class="table-wrap"><table><caption class="sr-only">Observações fiscais recentes</caption><thead><tr><th scope="col">Data</th><th id="fiscal-table-head-1" scope="col">Primário</th><th id="fiscal-table-head-2" scope="col">Juros</th><th id="fiscal-table-head-3" scope="col">Nominal</th></tr></thead><tbody id="fiscal-table-body"></tbody></table></div>
+        </details>
+
+        <div class="fiscal-profile-panel">
+          <div class="panel-heading"><div><h3>Perfil da Dívida Pública Federal</h3><p>Indicadores oficiais do RMD preservados como snapshot documental versionado.</p></div><p id="fiscal-profile-date" class="context-label"></p></div>
+          <div id="fiscal-profile-metrics" class="metric-grid metric-grid-fiscal-profile"></div>
+          <div class="fiscal-composition-panel"><h3>Composição por indexador</h3><div id="fiscal-composition"></div></div>
+          <p class="credit-method-note">DPF e DBGG têm coberturas institucionais diferentes. Prazo médio, custo e liquidez são os valores publicados pelo Tesouro; o monitor não os reconstrói por aproximações próprias.</p>
+        </div>
+      </div>
+    </section>
+
     <section aria-labelledby="curva-title" class="yield-curve-section">
       <div class="section-heading yield-curve-heading">
         <div>

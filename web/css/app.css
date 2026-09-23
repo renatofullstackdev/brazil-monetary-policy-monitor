@@ -621,3 +621,21 @@ button.credit-metric:hover { border-color: color-mix(in srgb, var(--border), var
   .credit-toolbar .range-controls { width: 100%; flex-wrap: wrap; }
   .metric-grid-credit { grid-template-columns: 1fr; }
 }
+
+.fiscal-section { margin-top: 3rem; }
+.metric-grid-fiscal { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin: 1rem 0; }
+.metric-grid-fiscal-profile { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-top: 1rem; }
+.fiscal-profile-panel { margin-top: 1.5rem; padding: 1.25rem; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+.fiscal-composition-panel { margin-top: 1.25rem; }
+.fiscal-composition-row { margin: .8rem 0; }
+.fiscal-composition-head { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: .3rem; font-size: .92rem; }
+.fiscal-composition-track { height: .55rem; border-radius: 999px; background: var(--surface-soft); overflow: hidden; }
+.fiscal-composition-fill { height: 100%; background: currentColor; opacity: .55; }
+.fiscal-series-1 { stroke: var(--accent); }
+.fiscal-series-2 { stroke: var(--series-taylor); }
+.fiscal-series-3 { stroke: var(--text); }
+.fiscal-legend-1 { background: var(--accent); }
+.fiscal-legend-2 { background: var(--series-taylor); }
+.fiscal-legend-3 { background: var(--text); }
+.fiscal-zero-line { stroke-width: 1.4; }
+.fiscal-chart { min-height: 330px; }
