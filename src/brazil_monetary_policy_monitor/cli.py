@@ -20,12 +20,15 @@ from .pipeline import (
     DEFAULT_WINDOW_YEARS,
     DEFAULT_MACRO_LOOKBACK_DAYS,
     DEFAULT_MACRO_OVERLAP_DAYS,
+    DEFAULT_CREDIT_LOOKBACK_DAYS,
+    DEFAULT_CREDIT_OVERLAP_DAYS,
     DEFAULT_YIELD_CURVE_LOOKBACK_DAYS,
     DEFAULT_YIELD_CURVE_OVERLAP_DAYS,
     resolve_focus_incremental_start,
     resolve_incremental_start,
     update_focus_ipca,
     update_macro_context,
+    update_credit_context,
     update_yield_curve,
     update_selic,
 )
@@ -138,6 +141,30 @@ def _update_macro(args: argparse.Namespace) -> int:
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
+
+
+def _update_credit(args: argparse.Namespace) -> int:
+    end = args.end or date.today()
+    fetcher = partial(
+        fetch_bytes,
+        timeout=args.timeout,
+        retries=args.retries,
+        backoff_seconds=args.backoff_seconds,
+    )
+    result = update_credit_context(
+        database_path=args.database,
+        raw_root=args.raw_dir,
+        published_dir=args.published_dir,
+        credit_output_path=args.output,
+        start=args.start,
+        end=end,
+        fetcher=fetcher,
+        overlap_days=args.overlap_days,
+        initial_lookback_days=args.initial_lookback_days,
+        window_years=args.window_years,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
 
 def _update_yield_curve(args: argparse.Namespace) -> int:
     end = args.end or date.today()
@@ -280,6 +307,28 @@ def build_parser() -> argparse.ArgumentParser:
     macro.add_argument("--retries", type=int, default=DEFAULT_HTTP_RETRIES)
     macro.add_argument("--backoff-seconds", type=float, default=DEFAULT_HTTP_BACKOFF_SECONDS)
     macro.set_defaults(handler=_update_macro)
+
+
+    credit = subparsers.add_parser(
+        "update-credit",
+        help="Collect Sprint 9 credit and transmission SGS series",
+    )
+    credit.add_argument("--database", type=Path, default=Path("data/database/monitor.sqlite3"))
+    credit.add_argument("--raw-dir", type=Path, default=Path("data/raw"))
+    credit.add_argument("--published-dir", type=Path, default=Path("data/published"))
+    credit.add_argument("--output", type=Path, default=Path("web/data/credit-transmission.json"))
+    credit.add_argument("--start", type=_date_argument)
+    credit.add_argument("--end", type=_date_argument)
+    credit.add_argument("--overlap-days", type=int, default=DEFAULT_CREDIT_OVERLAP_DAYS)
+    credit.add_argument("--initial-lookback-days", type=int, default=DEFAULT_CREDIT_LOOKBACK_DAYS)
+    credit.add_argument(
+        "--window-years", type=int, choices=range(1, 11), default=DEFAULT_WINDOW_YEARS,
+        metavar="1..10", help="calendar years per SGS request (default: %(default)s)",
+    )
+    credit.add_argument("--timeout", type=float, default=DEFAULT_HTTP_TIMEOUT)
+    credit.add_argument("--retries", type=int, default=DEFAULT_HTTP_RETRIES)
+    credit.add_argument("--backoff-seconds", type=float, default=DEFAULT_HTTP_BACKOFF_SECONDS)
+    credit.set_defaults(handler=_update_credit)
 
 
     curve = subparsers.add_parser(
