@@ -139,3 +139,15 @@ Uma execução `running` não possui `finished_at`; execuções finalizadas prec
 Campos `*_json` são `TEXT` na Sprint 1. Não há constraint `json_valid()` para evitar tornar o schema dependente da disponibilidade das extensões JSON do SQLite. Coletores e modelos deverão validar o conteúdo antes de persistir.
 
 Da mesma forma, não se impõem enums SQL excessivamente restritos para frequências e tipos de evento antes de observar casos reais das fontes oficiais.
+
+## Source observation chronology
+
+Migration `0002_source_observation_timestamp` adds nullable `observations.source_observation_at`.
+
+This field is distinct from both `published_at` and `available_at`:
+
+- `source_observation_at`: date/timestamp attached by the provider to the statistic or survey vintage;
+- `published_at`: authoritative publication timestamp, only when the source actually provides or documents it;
+- `available_at`: earliest time the monitor can defend that the vintage was available to this system.
+
+Focus uses this distinction because its `Data` field identifies the statistic date, while the catalog describes a weekly publication cadence. Historical backfills therefore retain provider chronology without fabricating historical availability.

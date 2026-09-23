@@ -152,3 +152,76 @@ A tela agrupa esses indicadores em **Contexto macroeconômico**, separado das pr
 Quando os quatro insumos estão disponíveis, `taylor_prospective.latest` contém o benchmark corrente e sua decomposição. A presença de `latest` não implica histórico: na Sprint 7, `taylor_prospective.observations` permanece vazio enquanto não houver vintages historicamente alinhados de taxa neutra e hiato. A interface informa essa limitação no painel histórico em vez de desenhar uma linha retroativa artificial.
 
 As novas unidades `percent`, `index` e `brl_real` têm formatação própria no navegador. Apenas `percent_per_year` recebe o sufixo visual `a.a.`.
+
+## Contrato `yield-curve.json` da Sprint 8
+
+A curva de juros usa um segundo contrato estático para evitar inflar `overview.json` e para poder ser carregada de forma independente:
+
+```text
+web/data/yield-curve.json
+```
+
+Estrutura principal:
+
+```json
+{
+  "schema_version": 1,
+  "view": "yield_curve",
+  "status": "available",
+  "methodology": {
+    "curve_type": "offered_title_yield_proxy",
+    "constant_tenors_years": [2, 3, 5, 7, 10],
+    "interpolation": "linear_between_bracketing_offered_maturities_no_extrapolation"
+  },
+  "latest": {},
+  "presets": {
+    "one_month": {},
+    "one_year": {},
+    "previous_copom": {}
+  },
+  "snapshots": []
+}
+```
+
+Cada snapshot contém:
+
+- `requested_date`: data solicitada;
+- `effective_date`: último dia de mercado encontrado na data ou antes dela;
+- `nominal`: pontos observados dos prefixados;
+- `real`: pontos observados dos IPCA+;
+- `tenors`: vértices constantes e inflação implícita derivada;
+- `slopes`: diferenças 10a−2a quando calculáveis.
+
+O navegador consulta somente esse JSON. Não acessa Tesouro Transparente diretamente. Se o contrato ainda não existir, a seção de curva informa o comando de atualização sem impedir o restante do painel de carregar.
+
+A seleção de data personalizada é local: o frontend procura em `snapshots` a última curva cuja `effective_date` não ultrapassa a data pedida. Portanto, não há chamada de rede durante a interação.
+
+
+## Contrato `credit-transmission.json` da Sprint 9
+
+O módulo de crédito usa um terceiro contrato estático independente:
+
+```text
+web/data/credit-transmission.json
+```
+
+Estrutura reduzida:
+
+```json
+{
+  "schema_version": 1,
+  "view": "credit_transmission",
+  "status": "available",
+  "groups": {
+    "real_growth": {"series": []},
+    "interest_rates": {"series": []},
+    "delinquency": {"series": []}
+  }
+}
+```
+
+Cada grupo contém exatamente duas séries conceitualmente comparáveis: livre e direcionada. Cada série expõe `status`, `data_kind`, `unit`, `transformation`, `latest`, `observations`, `note` e fonte.
+
+`real_growth` é `derived` e depende dos saldos SGS + IPCA mensal. `interest_rates` e `delinquency` são `observed`. A ausência do IPCA não impede taxas e inadimplência de serem publicadas; apenas deixa o crescimento real como `unavailable`.
+
+O navegador carrega o arquivo por `fetch`, filtra 1/3/5 anos ou toda a série e alterna grupos sem nova chamada de rede. A falha desse contrato é isolada: a seção informa `./scripts/update-credit.sh`, mas o restante da aplicação continua funcional.

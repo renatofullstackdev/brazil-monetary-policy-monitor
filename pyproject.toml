@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 license = "MIT"
 authors = [
-  { name = "Monetary Policy Dashboard contributors" }
+  { name = "Brazil Monetary Policy Monitor contributors" }
 ]
 dependencies = []
 

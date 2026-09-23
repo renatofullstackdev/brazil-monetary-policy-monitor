@@ -198,3 +198,57 @@ A Sprint 7 também registra, separadamente das séries SGS:
 - `br.output_gap.rpm`: 0,4%, 2º trimestre de 2026, RPM junho/2026, p. 68.
 
 Esses valores carregam URL, referência, período, metodologia, publicação e natureza (`observed` ou `estimated`). A sincronização é idempotente e não depende de scraping do PDF: os valores curados fazem parte do registro metodológico auditável e qualquer atualização exige nova versão explícita.
+
+## Sprint 8 — Taxas dos Títulos Ofertados pelo Tesouro Direto
+
+Fonte produtora: **Secretaria do Tesouro Nacional / Tesouro Transparente**.
+
+Conjunto: `Taxas dos Títulos Ofertados pelo Tesouro Direto`.
+
+Recurso CSV oficial:
+
+`https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv`
+
+O metadado oficial informa periodicidade diária, divulgação no primeiro dia útil após o fechamento do mercado secundário e possibilidade de revisão dos valores. O CSV contém tipo de título, vencimento, data-base, taxas de compra/venda e PUs.
+
+A coleta salva o CSV completo recebido antes do parsing. Como o recurso é um arquivo histórico completo, e não uma API parametrizada por datas, o pipeline baixa o arquivo oficial inteiro em cada execução. Para limitar banco e payload da interface, a primeira ingestão normaliza por padrão apenas os últimos cinco anos de títulos relevantes; atualizações posteriores reprocessam uma sobreposição recente. O snapshot bruto, contudo, preserva exatamente o arquivo recebido.
+
+Somente quatro famílias alimentam a proxy de curva:
+
+- Tesouro Prefixado;
+- Tesouro Prefixado com Juros Semestrais;
+- Tesouro IPCA+;
+- Tesouro IPCA+ com Juros Semestrais.
+
+Tesouro Selic, Renda+ e Educa+ podem existir no arquivo, mas não entram nas curvas nominal/real desta metodologia.
+
+A taxa selecionada é `Taxa Compra Manha`, descrita pela fonte como a taxa disponível para o investidor comprar o título. `Taxa Venda Manha` e PUs continuam preservados no SQLite para auditoria, mas não são usados no gráfico da Sprint 8.
+
+Licença declarada pelo conjunto: **Open Data Commons Open Database License (ODbL)**.
+
+
+## Séries de crédito homologadas na Sprint 9
+
+A Sprint 9 reutiliza o mesmo coletor SGS auditado para seis séries mensais do Departamento de Estatísticas do BCB. Os saldos representam estoque em fim de período; as taxas são médias das **novas operações**; inadimplência corresponde à parcela da carteira com pelo menos uma prestação em atraso superior a 90 dias.
+
+| Chave interna | SGS | Conceito | Unidade | Uso |
+| --- | ---: | --- | --- | --- |
+| `br.credit.free.balance` | 20542 | saldo da carteira com recursos livres — total | R$ milhões | crescimento real 12m |
+| `br.credit.directed.balance` | 20593 | saldo da carteira com recursos direcionados — total | R$ milhões | crescimento real 12m |
+| `br.credit.free.interest_rate` | 20717 | taxa média de juros — recursos livres — total | % a.a. | observado |
+| `br.credit.directed.interest_rate` | 20756 | taxa média de juros — recursos direcionados — total | % a.a. | observado |
+| `br.credit.free.delinquency` | 21085 | inadimplência — recursos livres — total | % | observado |
+| `br.credit.directed.delinquency` | 21132 | inadimplência — recursos direcionados — total | % | observado |
+
+Catálogo oficial:
+
+- https://dadosabertos.bcb.gov.br/dataset/20542-saldo-da-carteira-de-credito-com-recursos-livres---total
+- https://dadosabertos.bcb.gov.br/dataset/20593-saldo-da-carteira-de-credito-com-recursos-direcionados---total
+- https://dadosabertos.bcb.gov.br/dataset/20717-taxa-media-de-juros-das-operacoes-de-credito-com-recursos-livres---total
+- https://dadosabertos.bcb.gov.br/dataset/20756-taxa-media-de-juros-das-operacoes-de-credito-com-recursos-direcionados---total
+- https://dadosabertos.bcb.gov.br/dataset/21085-inadimplencia-da-carteira-de-credito-com-recursos-livres---total
+- https://dadosabertos.bcb.gov.br/dataset/21132-inadimplencia-da-carteira-de-credito-com-recursos-direcionados---total
+
+Como todas são mensais, `update-credit` aplica a mesma defesa já aprendida na Sprint 7: início alinhado ao primeiro dia do mês, chunks anuais e coalescência apenas de repetições idênticas entre chunks. `404 Value(s) not found` continua significando janela vazia somente quando o corpo do próprio SGS confirma essa condição.
+
+Nenhum índice composto de condições financeiras foi homologado nesta sprint. A ausência é intencional: um índice próprio exigiria escolhas de padronização, pesos, sinal e janela que poderiam parecer objetivas sem uma fonte ou metodologia institucional defensável.

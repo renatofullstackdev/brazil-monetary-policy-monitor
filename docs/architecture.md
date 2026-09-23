@@ -218,3 +218,44 @@ publicação oficial
 Isso impede que estimativas documentais sejam disfarçadas de observações de alta frequência. Também permite selecionar o último parâmetro que já estava disponível **e** efetivo na data de conhecimento.
 
 O publicador deriva IPCA/núcleo/serviços em 12 meses e IBC-Br m/m sem alterar as observações brutas. Taylor, Selic−Taylor e gap real são calculados somente na publicação. Nesta etapa, a Taylor tem apenas valor corrente; `observations` permanece vazio até que seja possível reconstruir seus insumos historicamente sem look-ahead.
+
+## Curva de juros na Sprint 8
+
+A curva do Tesouro Direto possui persistência própria em `yield_curve_quotes`, porque uma data contém várias combinações de tipo de título e vencimento e não se encaixa naturalmente na tabela escalar `observations`.
+
+O fluxo é:
+
+```text
+CSV histórico oficial do Tesouro Transparente
+  -> snapshot bruto completo
+  -> parser CSV brasileiro validado
+  -> yield_curve_quotes revision-aware
+  -> transformação pura de curvas/vértices
+  -> web/data/yield-curve.json
+  -> SVG específico no navegador
+```
+
+O arquivo oficial é baixado integralmente por não oferecer filtro por data no recurso CSV. A retenção normalizada inicial é limitada a cinco anos por padrão. Revisões de uma mesma data/título/vencimento coexistem por `vintage_key`, da mesma forma que revisões de séries escalares não sobrescrevem observações antigas.
+
+A reavaliação prevista no ADR 0009 não encontrou ainda justificativa suficiente para ECharts: a Sprint 8 exibe uma família por vez e no máximo duas datas. O componente continua específico e não vira framework gráfico interno. Ver ADR 0014.
+
+
+## Crédito e transmissão na Sprint 9
+
+As séries de crédito reutilizam `series` + `observations`; nenhuma nova tabela é necessária porque cada observação continua sendo escalar por data. O fluxo é:
+
+```text
+BCB SGS (6 séries mensais)
+  -> snapshots brutos por série/chunk
+  -> observations revision-aware
+  -> publicações individuais em data/published
+  -> derivação de crescimento real com IPCA já persistido
+  -> web/data/credit-transmission.json
+  -> SVG e tabela no navegador
+```
+
+A publicação do contrato agregado ocorre somente depois que todas as seis coletas terminam com sucesso. Assim, uma execução parcial pode deixar novas observações auditadas no SQLite, mas não substitui o último `credit-transmission.json` coerente.
+
+O contrato de crédito é separado de `overview.json` porque carrega históricos suficientes para interação local em três famílias distintas. Isso mantém a visão geral compacta e permite que uma falha do módulo de crédito não impeça Selic/Taylor, curva de juros ou simulador de carregar.
+
+O cálculo real usa exclusivamente séries já persistidas e a função pura `real_balance_growth_percent`; o frontend não reimplementa a deflação.
