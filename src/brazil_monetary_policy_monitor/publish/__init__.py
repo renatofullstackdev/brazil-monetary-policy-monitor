@@ -12,3 +12,5 @@ __all__ = [
 from .yield_curve import publish_yield_curve_json
 
 from .credit_transmission import build_credit_transmission_document, publish_credit_transmission_json
+
+from .fiscal import build_fiscal_document, publish_fiscal_json

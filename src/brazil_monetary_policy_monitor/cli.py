@@ -22,6 +22,8 @@ from .pipeline import (
     DEFAULT_MACRO_OVERLAP_DAYS,
     DEFAULT_CREDIT_LOOKBACK_DAYS,
     DEFAULT_CREDIT_OVERLAP_DAYS,
+    DEFAULT_FISCAL_LOOKBACK_DAYS,
+    DEFAULT_FISCAL_OVERLAP_DAYS,
     DEFAULT_YIELD_CURVE_LOOKBACK_DAYS,
     DEFAULT_YIELD_CURVE_OVERLAP_DAYS,
     resolve_focus_incremental_start,
@@ -29,6 +31,7 @@ from .pipeline import (
     update_focus_ipca,
     update_macro_context,
     update_credit_context,
+    update_fiscal_context,
     update_yield_curve,
     update_selic,
 )
@@ -165,6 +168,30 @@ def _update_credit(args: argparse.Namespace) -> int:
     )
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
+
+def _update_fiscal(args: argparse.Namespace) -> int:
+    end = args.end or date.today()
+    fetcher = partial(
+        fetch_bytes,
+        timeout=args.timeout,
+        retries=args.retries,
+        backoff_seconds=args.backoff_seconds,
+    )
+    result = update_fiscal_context(
+        database_path=args.database,
+        raw_root=args.raw_dir,
+        published_dir=args.published_dir,
+        fiscal_output_path=args.output,
+        start=args.start,
+        end=end,
+        fetcher=fetcher,
+        overlap_days=args.overlap_days,
+        initial_lookback_days=args.initial_lookback_days,
+        window_years=args.window_years,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
 
 def _update_yield_curve(args: argparse.Namespace) -> int:
     end = args.end or date.today()
@@ -308,6 +335,26 @@ def build_parser() -> argparse.ArgumentParser:
     macro.add_argument("--backoff-seconds", type=float, default=DEFAULT_HTTP_BACKOFF_SECONDS)
     macro.set_defaults(handler=_update_macro)
 
+
+    fiscal = subparsers.add_parser(
+        "update-fiscal",
+        help="Collect Sprint 10 fiscal SGS series and publish the RMD profile",
+    )
+    fiscal.add_argument("--database", type=Path, default=Path("data/database/monitor.sqlite3"))
+    fiscal.add_argument("--raw-dir", type=Path, default=Path("data/raw"))
+    fiscal.add_argument("--published-dir", type=Path, default=Path("data/published"))
+    fiscal.add_argument("--output", type=Path, default=Path("web/data/fiscal.json"))
+    fiscal.add_argument("--start", type=_date_argument)
+    fiscal.add_argument("--end", type=_date_argument)
+    fiscal.add_argument("--overlap-days", type=int, default=DEFAULT_FISCAL_OVERLAP_DAYS)
+    fiscal.add_argument("--initial-lookback-days", type=int, default=DEFAULT_FISCAL_LOOKBACK_DAYS)
+    fiscal.add_argument(
+        "--window-years", type=int, choices=range(1, 11), default=DEFAULT_WINDOW_YEARS, metavar="1..10"
+    )
+    fiscal.add_argument("--timeout", type=float, default=DEFAULT_HTTP_TIMEOUT)
+    fiscal.add_argument("--retries", type=int, default=DEFAULT_HTTP_RETRIES)
+    fiscal.add_argument("--backoff-seconds", type=float, default=DEFAULT_HTTP_BACKOFF_SECONDS)
+    fiscal.set_defaults(handler=_update_fiscal)
 
     credit = subparsers.add_parser(
         "update-credit",
