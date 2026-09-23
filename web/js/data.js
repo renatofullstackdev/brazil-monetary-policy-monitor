@@ -30,3 +30,14 @@ export async function loadYieldCurve(url = "./data/yield-curve.json") {
   }
   return payload;
 }
+
+
+export async function loadCreditTransmission(url = "./data/credit-transmission.json") {
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Falha ao carregar ${url}: HTTP ${response.status}`);
+  const payload = await response.json();
+  if (!payload || payload.schema_version !== 1 || payload.view !== "credit_transmission") {
+    throw new Error("Contrato credit_transmission não suportado.");
+  }
+  return payload;
+}

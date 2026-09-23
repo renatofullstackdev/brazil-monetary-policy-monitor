@@ -1,13 +1,20 @@
-import { loadOverview, loadYieldCurve } from "./data.js";
+import { loadCreditTransmission, loadOverview, loadYieldCurve } from "./data.js";
 import { renderOverview } from "./views/overview.js";
 import { initializeSimulator } from "./views/simulator.js";
 import { renderYieldCurve, renderYieldCurveUnavailable } from "./views/yield_curve.js";
+import { renderCreditTransmission, renderCreditUnavailable } from "./views/credit.js";
 
 async function main() {
   try {
     const payload = await loadOverview();
     renderOverview(payload);
     initializeSimulator(payload);
+    try {
+      const credit = await loadCreditTransmission();
+      renderCreditTransmission(credit);
+    } catch (creditError) {
+      renderCreditUnavailable(`Crédito indisponível. Execute ./scripts/update-credit.sh. Detalhe: ${creditError.message}`);
+    }
     try {
       const curve = await loadYieldCurve();
       renderYieldCurve(curve);

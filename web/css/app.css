@@ -572,3 +572,52 @@ th { color: var(--muted); font-weight: 650; }
   .curve-compare-controls select, .curve-compare-controls input { width: 100%; }
   .metric-grid-curve { grid-template-columns: 1fr; }
 }
+
+
+/* Sprint 9 — credit and monetary transmission */
+.credit-section {
+  padding: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.credit-heading { align-items: start; }
+.credit-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.metric-grid-credit { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.credit-metric {
+  width: 100%;
+  padding: .9rem 1rem;
+  text-align: left;
+  color: var(--text);
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+button.credit-metric { cursor: pointer; }
+button.credit-metric:hover { border-color: color-mix(in srgb, var(--border), var(--accent) 35%); }
+.credit-metric span, .credit-metric small { display: block; color: var(--muted); }
+.credit-metric span { min-height: 2.2em; font-size: .78rem; }
+.credit-metric strong { display: block; margin-top: .3rem; font-size: 1.45rem; }
+.credit-metric small { margin-top: .25rem; font-size: .72rem; }
+.credit-metric.unavailable { opacity: .65; }
+.credit-chart .credit-primary-line { stroke: var(--series-selic); }
+.credit-chart .credit-secondary-line { stroke: var(--series-taylor); }
+.credit-chart .credit-primary-dot { fill: var(--series-selic); }
+.credit-chart .credit-secondary-dot { fill: var(--series-taylor); }
+.credit-method-note {
+  margin: .8rem 0 0;
+  color: var(--muted);
+  font-size: .78rem;
+}
+@media (max-width: 760px) {
+  .credit-toolbar { align-items: stretch; flex-direction: column; }
+  .credit-toolbar .range-controls { width: 100%; flex-wrap: wrap; }
+  .metric-grid-credit { grid-template-columns: 1fr; }
+}

@@ -168,6 +168,57 @@
     </section>
 
 
+    <section aria-labelledby="credito-title" class="credit-section">
+      <div class="section-heading credit-heading">
+        <div>
+          <p class="section-kicker">Transmissão monetária</p>
+          <h2 id="credito-title">Os juros estão chegando à economia?</h2>
+          <p class="section-intro">Crédito livre e direcionado: crescimento real do saldo, taxas médias das novas operações e inadimplência. O bloco é descritivo e não atribui causalidade exclusivamente à Selic.</p>
+        </div>
+        <p id="credit-date" class="context-label">Aguardando dados…</p>
+      </div>
+
+      <div id="credit-unavailable" class="error-panel" hidden></div>
+      <div id="credit-content">
+        <div class="credit-toolbar">
+          <div id="credit-mode-controls" class="range-controls" role="group" aria-label="Indicador de crédito">
+            <button type="button" data-credit-mode="real_growth" aria-pressed="true">Crescimento real</button>
+            <button type="button" data-credit-mode="interest_rates" aria-pressed="false">Taxas</button>
+            <button type="button" data-credit-mode="delinquency" aria-pressed="false">Inadimplência</button>
+          </div>
+          <div id="credit-range-controls" class="range-controls" role="group" aria-label="Período do gráfico de crédito">
+            <button type="button" data-credit-range="1" aria-pressed="false">1A</button>
+            <button type="button" data-credit-range="3" aria-pressed="false">3A</button>
+            <button type="button" data-credit-range="5" aria-pressed="true">5A</button>
+            <button type="button" data-credit-range="all" aria-pressed="false">Tudo</button>
+          </div>
+        </div>
+
+        <div id="credit-metrics" class="metric-grid metric-grid-credit" aria-live="polite"></div>
+
+        <div class="chart-panel">
+          <div id="credit-legend" class="chart-legend" aria-label="Séries de crédito exibidas"></div>
+          <div id="credit-note" class="inline-note"></div>
+          <div id="credit-chart" class="chart credit-chart" role="img" aria-label="Histórico dos indicadores de crédito livre e direcionado"></div>
+          <p id="credit-summary" class="sr-only" aria-live="polite"></p>
+        </div>
+
+        <details class="data-table-panel">
+          <summary>Tabela das observações recentes</summary>
+          <div class="table-wrap">
+            <table>
+              <caption class="sr-only">Observações recentes de crédito livre e direcionado</caption>
+              <thead><tr><th scope="col">Data</th><th scope="col">Livre</th><th scope="col">Direcionado</th></tr></thead>
+              <tbody id="credit-table-body"></tbody>
+            </table>
+          </div>
+        </details>
+
+        <p class="credit-method-note">O crescimento real é derivado do saldo nominal em 12 meses dividido pelo fator de inflação do IPCA no mesmo intervalo. Taxas médias são das novas operações; inadimplência corresponde a atraso superior a 90 dias.</p>
+      </div>
+    </section>
+
+
     <section aria-labelledby="curva-title" class="yield-curve-section">
       <div class="section-heading yield-curve-heading">
         <div>
