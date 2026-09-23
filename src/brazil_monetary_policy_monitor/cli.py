@@ -20,10 +20,13 @@ from .pipeline import (
     DEFAULT_WINDOW_YEARS,
     DEFAULT_MACRO_LOOKBACK_DAYS,
     DEFAULT_MACRO_OVERLAP_DAYS,
+    DEFAULT_YIELD_CURVE_LOOKBACK_DAYS,
+    DEFAULT_YIELD_CURVE_OVERLAP_DAYS,
     resolve_focus_incremental_start,
     resolve_incremental_start,
     update_focus_ipca,
     update_macro_context,
+    update_yield_curve,
     update_selic,
 )
 from .publish import publish_overview_json
@@ -131,6 +134,28 @@ def _update_macro(args: argparse.Namespace) -> int:
         overlap_days=args.overlap_days,
         initial_lookback_days=args.initial_lookback_days,
         window_years=args.window_years,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def _update_yield_curve(args: argparse.Namespace) -> int:
+    end = args.end or date.today()
+    fetcher = partial(
+        fetch_bytes,
+        timeout=args.timeout,
+        retries=args.retries,
+        backoff_seconds=args.backoff_seconds,
+    )
+    result = update_yield_curve(
+        database_path=args.database,
+        raw_root=args.raw_dir,
+        published_path=args.output,
+        start=args.start,
+        end=end,
+        fetcher=fetcher,
+        overlap_days=args.overlap_days,
+        initial_lookback_days=args.initial_lookback_days,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
@@ -255,6 +280,23 @@ def build_parser() -> argparse.ArgumentParser:
     macro.add_argument("--retries", type=int, default=DEFAULT_HTTP_RETRIES)
     macro.add_argument("--backoff-seconds", type=float, default=DEFAULT_HTTP_BACKOFF_SECONDS)
     macro.set_defaults(handler=_update_macro)
+
+
+    curve = subparsers.add_parser(
+        "update-yield-curve",
+        help="Collect Tesouro Direto offered-title rates and publish curve proxies",
+    )
+    curve.add_argument("--database", type=Path, default=Path("data/database/monitor.sqlite3"))
+    curve.add_argument("--raw-dir", type=Path, default=Path("data/raw"))
+    curve.add_argument("--output", type=Path, default=Path("web/data/yield-curve.json"))
+    curve.add_argument("--start", type=_date_argument)
+    curve.add_argument("--end", type=_date_argument)
+    curve.add_argument("--overlap-days", type=int, default=DEFAULT_YIELD_CURVE_OVERLAP_DAYS)
+    curve.add_argument("--initial-lookback-days", type=int, default=DEFAULT_YIELD_CURVE_LOOKBACK_DAYS)
+    curve.add_argument("--timeout", type=float, default=max(DEFAULT_HTTP_TIMEOUT, 60.0))
+    curve.add_argument("--retries", type=int, default=DEFAULT_HTTP_RETRIES)
+    curve.add_argument("--backoff-seconds", type=float, default=DEFAULT_HTTP_BACKOFF_SECONDS)
+    curve.set_defaults(handler=_update_yield_curve)
 
     overview = subparsers.add_parser(
         "publish-overview",

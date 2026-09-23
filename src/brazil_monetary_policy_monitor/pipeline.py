@@ -703,3 +703,169 @@ def update_macro_context(
         }
     finally:
         connection.close()
+
+DEFAULT_YIELD_CURVE_OVERLAP_DAYS = 45
+DEFAULT_YIELD_CURVE_LOOKBACK_DAYS = 5 * 366
+
+
+def resolve_yield_curve_incremental_start(
+    connection: sqlite3.Connection,
+    *,
+    source_id: int,
+    end: date,
+    overlap_days: int = DEFAULT_YIELD_CURVE_OVERLAP_DAYS,
+    initial_lookback_days: int = DEFAULT_YIELD_CURVE_LOOKBACK_DAYS,
+) -> date:
+    if overlap_days < 0:
+        raise ValueError("overlap_days cannot be negative")
+    if initial_lookback_days < 1:
+        raise ValueError("initial_lookback_days must be positive")
+    row = connection.execute(
+        "SELECT MAX(reference_date) FROM yield_curve_quotes WHERE source_id = ?",
+        (source_id,),
+    ).fetchone()
+    if row is None or row[0] is None:
+        return end - timedelta(days=initial_lookback_days)
+    return min(date.fromisoformat(str(row[0])) - timedelta(days=overlap_days), end)
+
+
+def update_yield_curve(
+    *,
+    database_path: str | Path,
+    raw_root: str | Path,
+    published_path: str | Path,
+    end: date,
+    start: date | None = None,
+    fetcher: FetchBytes = fetch_bytes,
+    clock: Clock = utc_now,
+    overlap_days: int = DEFAULT_YIELD_CURVE_OVERLAP_DAYS,
+    initial_lookback_days: int = DEFAULT_YIELD_CURVE_LOOKBACK_DAYS,
+) -> dict[str, object]:
+    """Ingest Tesouro Direto offered-title rates and publish curve proxies.
+
+    The official resource is a full-history CSV rather than a date-ranged API.
+    Every run therefore snapshots the complete provider payload, but only the
+    configured recent window is normalized into SQLite.  This keeps the raw
+    evidence intact while bounding database/publication size.
+    """
+
+    from .collectors.tesouro_direto import (
+        CURVE_INSTRUMENT_TYPES,
+        TESOURO_DIRETO_RATES_URL,
+        parse_tesouro_direto_csv,
+    )
+    from .db.yield_curve import persist_yield_curve_quotes
+    from .ingestion import ensure_tesouro_direto_metadata
+    from .publish import publish_yield_curve_json
+
+    if overlap_days < 0:
+        raise ValueError("overlap_days cannot be negative")
+    if initial_lookback_days < 1:
+        raise ValueError("initial_lookback_days must be positive")
+
+    connection = initialize_database(database_path)
+    source_id = ensure_tesouro_direto_metadata(connection)
+    effective_start = start or resolve_yield_curve_incremental_start(
+        connection,
+        source_id=source_id,
+        end=end,
+        overlap_days=overlap_days,
+        initial_lookback_days=initial_lookback_days,
+    )
+    if effective_start > end:
+        connection.close()
+        raise ValueError("start date must not be after end date")
+
+    started_at = clock()
+    run_id = start_ingestion_run(
+        connection,
+        source_id=source_id,
+        started_at=started_at,
+        collector_version="sprint8-yield-curve",
+        provider="Tesouro Nacional",
+    )
+    snapshots = RawSnapshotRun(
+        root=Path(raw_root),
+        provider="tesouro_nacional",
+        series_key="tesouro-direto-rates",
+        run_id=run_id,
+        started_at=started_at,
+    )
+    received = inserted = unchanged = 0
+    persisted = False
+    try:
+        payload = fetcher(TESOURO_DIRETO_RATES_URL)
+        snapshots.save_payload(index=1, url=TESOURO_DIRETO_RATES_URL, payload=payload)
+        all_records = parse_tesouro_direto_csv(payload)
+        records = [
+            record
+            for record in all_records
+            if record.instrument_type in CURVE_INSTRUMENT_TYPES
+            and effective_start <= record.reference_date <= end
+        ]
+        received = len(records)
+        inserted, unchanged = persist_yield_curve_quotes(
+            connection,
+            source_id=source_id,
+            run_id=run_id,
+            records=records,
+            retrieved_at=clock(),
+        )
+        persisted = True
+        publish_yield_curve_json(
+            connection,
+            output_path=published_path,
+            generated_at=clock(),
+        )
+        finished_at = clock()
+        finish_ingestion_run(
+            connection,
+            run_id=run_id,
+            finished_at=finished_at,
+            status="succeeded",
+            records_received=received,
+            records_inserted=inserted,
+            records_unchanged=unchanged,
+        )
+        snapshots.write_manifest(
+            status="succeeded",
+            finished_at=finished_at,
+            records_received=received,
+        )
+        return {
+            "status": "succeeded",
+            "run_id": run_id,
+            "start": effective_start.isoformat(),
+            "end": end.isoformat(),
+            "records_in_file": len(all_records),
+            "records_received": received,
+            "records_inserted": inserted,
+            "records_unchanged": unchanged,
+            "published_path": str(published_path),
+            "snapshot_directory": str(snapshots.directory),
+        }
+    except Exception as exc:
+        finished_at = clock()
+        status = "partial" if persisted else "failed"
+        error = _error_document(exc)
+        try:
+            finish_ingestion_run(
+                connection,
+                run_id=run_id,
+                finished_at=finished_at,
+                status=status,
+                records_received=received,
+                records_inserted=inserted,
+                records_unchanged=unchanged,
+                error=error,
+            )
+        finally:
+            snapshots.write_manifest(
+                status=status,
+                finished_at=finished_at,
+                records_received=received,
+                error=error,
+            )
+        raise
+    finally:
+        connection.close()

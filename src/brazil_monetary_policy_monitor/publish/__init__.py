@@ -8,3 +8,5 @@ __all__ = [
     "publish_overview_json",
     "publish_series_json",
 ]
+
+from .yield_curve import publish_yield_curve_json
