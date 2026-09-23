@@ -110,6 +110,7 @@ def start_ingestion_run(
     source_id: int,
     started_at: datetime,
     collector_version: str = "sprint2",
+    provider: str = "BCB",
 ) -> int:
     cursor = connection.execute(
         """
@@ -117,7 +118,7 @@ def start_ingestion_run(
             provider, source_id, started_at, status, collector_version
         ) VALUES (?, ?, ?, 'running', ?)
         """,
-        ("BCB", source_id, iso_z(started_at), collector_version),
+        (provider, source_id, iso_z(started_at), collector_version),
     )
     connection.commit()
     return int(cursor.lastrowid)
@@ -730,3 +731,62 @@ def persist_policy_inputs(
             inserted += 1
 
     return inserted, unchanged
+
+
+TESOURO_DIRETO_SOURCE_KEY = "tesouro.direto.rates"
+
+
+def ensure_tesouro_direto_metadata(connection: sqlite3.Connection) -> int:
+    """Create or refresh the official Tesouro Direto offered-rates source."""
+
+    from .collectors.tesouro_direto import (
+        TESOURO_DIRETO_DATASET_URL,
+        TESOURO_DIRETO_METADATA_URL,
+        TESOURO_DIRETO_RATES_URL,
+    )
+
+    connection.execute(
+        """
+        INSERT INTO sources(
+            key, provider, name, url, documentation_url, license, metadata_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+            provider = excluded.provider,
+            name = excluded.name,
+            url = excluded.url,
+            documentation_url = excluded.documentation_url,
+            license = excluded.license,
+            metadata_json = excluded.metadata_json,
+            updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        """,
+        (
+            TESOURO_DIRETO_SOURCE_KEY,
+            "Tesouro Nacional",
+            "Taxas dos Títulos Ofertados pelo Tesouro Direto",
+            TESOURO_DIRETO_RATES_URL,
+            TESOURO_DIRETO_DATASET_URL,
+            "Open Data Commons Open Database License (ODbL)",
+            json.dumps(
+                {
+                    "frequency": "daily",
+                    "official_history_start": "2004-12",
+                    "metadata_url": TESOURO_DIRETO_METADATA_URL,
+                    "publication_note": (
+                        "Published on the first business day after the secondary-market close."
+                    ),
+                    "revision_policy": (
+                        "The official metadata states that values may be revised when the primary "
+                        "database is corrected or consolidation errors are identified."
+                    ),
+                },
+                sort_keys=True,
+            ),
+        ),
+    )
+    source_id = int(
+        connection.execute(
+            "SELECT id FROM sources WHERE key = ?", (TESOURO_DIRETO_SOURCE_KEY,)
+        ).fetchone()[0]
+    )
+    connection.commit()
+    return source_id

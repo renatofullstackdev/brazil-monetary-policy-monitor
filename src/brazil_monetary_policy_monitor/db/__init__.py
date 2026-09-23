@@ -10,3 +10,5 @@ __all__ = [
     "observations_as_known",
     "observations_latest",
 ]
+
+from .yield_curve import latest_yield_curve_quotes, persist_yield_curve_quotes, quote_vintage_key

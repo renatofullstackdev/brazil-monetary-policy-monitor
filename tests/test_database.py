@@ -114,18 +114,18 @@ class MigrationTests(unittest.TestCase):
             first = migrate(connection)
             second = migrate(connection)
 
-            self.assertEqual([migration.version for migration in first], [1, 2])
+            self.assertEqual([migration.version for migration in first], [1, 2, 3])
             self.assertEqual(second, [])
             self.assertEqual(
                 connection.execute("PRAGMA user_version").fetchone()[0],
-                2,
+                3,
             )
             rows = connection.execute(
                 "SELECT version, name FROM schema_migrations"
             ).fetchall()
             self.assertEqual(
                 [(row[0], row[1]) for row in rows],
-                [(1, "initial_schema"), (2, "source_observation_timestamp")],
+                [(1, "initial_schema"), (2, "source_observation_timestamp"), (3, "yield_curve_quotes")],
             )
         finally:
             connection.close()
