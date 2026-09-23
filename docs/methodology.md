@@ -268,34 +268,3 @@ A inclinação apresentada é `10 anos - 2 anos` dentro da mesma família (nomin
 ### Comparação temporal
 
 Uma data solicitada utiliza a última data-base existente **na própria data ou antes dela**. A UI sempre informa a data efetiva usada. Os presets de 1 mês e 1 ano são calculados em relação à curva mais recente. O preset de Copom anterior só fica disponível quando eventos do Copom estiverem persistidos, previsto para a Sprint 14.
-
-
-## 16. Crédito e transmissão monetária da Sprint 9
-
-O bloco de crédito é descritivo. Uma taxa Selic mais alta pode afetar taxas bancárias, demanda por crédito, composição das concessões, risco e inadimplência, mas o painel não transforma co-movimento temporal em atribuição causal.
-
-### Crescimento real do saldo
-
-Para cada carteira (livre e direcionada), a Sprint 9 parte do saldo nominal observado no SGS e calcula, quando há cobertura mensal completa:
-
-```text
-crescimento_real_12m = ((saldo_t / saldo_t-12) / fator_IPCA_12m - 1) * 100
-```
-
-`fator_IPCA_12m` é o produto dos doze fatores mensais do IPCA que ligam o nível de preços de `t-12` a `t`. O cálculo só é publicado quando existem o saldo corrente, o saldo do mesmo mês do ano anterior e os doze IPCA mensais do intervalo.
-
-O resultado é `derived`; os saldos originais permanecem `observed` e inalterados no SQLite.
-
-### Taxas médias
-
-As séries 20717 e 20756 são taxas médias anuais das novas operações, ponderadas pelo valor das concessões. Elas são úteis para acompanhar transmissão para condições efetivamente contratadas, mas mudanças de composição entre modalidades, tomadores e risco também afetam a média.
-
-Por isso, a diferença entre crédito livre e direcionado é mostrada apenas como diferença descritiva em pontos percentuais; não é interpretada como prêmio puro nem como efeito isolado da política monetária.
-
-### Inadimplência
-
-As séries 21085 e 21132 medem a proporção da carteira com ao menos uma parcela vencida há mais de 90 dias. São exibidas no nível observado e não transformadas em indicador causal de aperto monetário.
-
-### Índice composto
-
-A Sprint 9 não cria um índice proprietário de condições financeiras. Um índice desse tipo exigiria uma metodologia explícita para transformação, sinal, padronização e pesos. Até existir fonte oficial ou metodologia que justifique essas escolhas, o painel mantém os canais separadamente observáveis.

@@ -52,9 +52,9 @@ Detalhes: [`docs/architecture.md`](docs/architecture.md).
 
 ## Estado atual
 
-**Sprint 9 — crédito e transmissão monetária.**
+**Sprint 7 — inflação, atividade e trabalho.**
 
-O repositório já coleta Selic, Focus, contexto doméstico e curva de juros do Tesouro Direto. A Sprint 9 acrescenta seis séries mensais de crédito do BCB: saldos livre/direcionado, taxas médias anuais das novas operações e inadimplência acima de 90 dias. O painel deriva crescimento real em 12 meses dos saldos usando o IPCA armazenado e publica um contrato estático próprio para investigar transmissão monetária sem atribuir causalidade exclusivamente à Selic.
+O repositório coleta a meta Selic, expectativas Focus e seis séries domésticas de inflação, atividade e trabalho pelo BCB. Meta de inflação, taxa real neutra e hiato entram como parâmetros documentais versionados, com referência explícita ao ato ou ao Relatório de Política Monetária. Com esses insumos, o painel publica a Taylor prospectiva corrente, Selic−Taylor, juro real ex ante e gap monetário real, sem fabricar histórico para `r*` ou hiato. O contexto macro mostra IPCA, núcleo, serviços, IBC-Br, desocupação e rendimento real em seção separada da fórmula.
 
 ## Estrutura
 
@@ -67,6 +67,7 @@ O repositório já coleta Selic, Focus, contexto doméstico e curva de juros do 
 │   ├── methodology.md
 │   ├── data-model.md
 │   ├── data-sources.md
+│   ├── project-plan.md
 │   └── decisions/
 ├── src/brazil_monetary_policy_monitor/
 │   └── db/
@@ -194,24 +195,6 @@ Depois de Selic e Focus estarem carregados, execute:
 
 A primeira execução busca aproximadamente cinco anos por série; as seguintes reutilizam o banco e refazem apenas uma sobreposição recente. O comando também sincroniza os três parâmetros documentais e republica `web/data/overview.json` somente depois que todas as séries macro solicitadas forem atualizadas com sucesso.
 
-## Atualização de crédito e transmissão
-
-Depois de carregar o contexto macro (o IPCA é necessário para o crescimento real dos saldos), execute:
-
-```bash
-./scripts/update-credit.sh
-```
-
-O comando coleta seis séries mensais do SGS em janelas anuais, preserva snapshots por série e publica `web/data/credit-transmission.json` somente depois que todas as séries solicitadas terminam com sucesso. A primeira execução busca aproximadamente cinco anos; as seguintes refazem uma sobreposição recente.
-
-A interface separa três leituras:
-
-- crescimento real em 12 meses do saldo livre e direcionado;
-- taxas médias anuais das novas operações;
-- inadimplência com atraso superior a 90 dias.
-
-O crescimento real é uma derivação do monitor, não uma série publicada diretamente pelo BCB. Taxas médias e inadimplência permanecem observadas. Nenhum índice composto de condições financeiras é criado nesta sprint.
-
 ## Atualização da curva de juros
 
 Depois das demais cargas, execute:
@@ -226,7 +209,7 @@ A interface apresenta curva nominal, real e inflação implícita, com comparaç
 
 ## Próxima sprint
 
-Sprint 10 implementará o módulo fiscal, separando fluxo, estoque e perfil da dívida sem tratar o resultado nominal como medida simples de impulso fiscal.
+Sprint 9 implementará crédito e condições financeiras, mantendo crédito livre e direcionado separados e evitando um índice composto sem fonte/metodologia defensável.
 
 ## Estado de implementação
 
@@ -238,8 +221,7 @@ Sprint 10 implementará o módulo fiscal, separando fluxo, estoque e perfil da d
 - Sprint 5: simulador local — concluída;
 - Sprint 6: Focus e horizonte relevante — concluída;
 - Sprint 7: inflação, atividade e trabalho — concluída;
-- Sprint 8: curva de juros do Tesouro Direto — concluída;
-- Sprint 9: crédito e transmissão monetária — concluída.
+- Sprint 8: curva de juros do Tesouro Direto — concluída.
 
 ### Focus expectations (Sprint 6)
 

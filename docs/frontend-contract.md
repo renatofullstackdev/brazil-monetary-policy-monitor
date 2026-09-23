@@ -195,33 +195,3 @@ Cada snapshot contém:
 O navegador consulta somente esse JSON. Não acessa Tesouro Transparente diretamente. Se o contrato ainda não existir, a seção de curva informa o comando de atualização sem impedir o restante do painel de carregar.
 
 A seleção de data personalizada é local: o frontend procura em `snapshots` a última curva cuja `effective_date` não ultrapassa a data pedida. Portanto, não há chamada de rede durante a interação.
-
-
-## Contrato `credit-transmission.json` da Sprint 9
-
-O módulo de crédito usa um terceiro contrato estático independente:
-
-```text
-web/data/credit-transmission.json
-```
-
-Estrutura reduzida:
-
-```json
-{
-  "schema_version": 1,
-  "view": "credit_transmission",
-  "status": "available",
-  "groups": {
-    "real_growth": {"series": []},
-    "interest_rates": {"series": []},
-    "delinquency": {"series": []}
-  }
-}
-```
-
-Cada grupo contém exatamente duas séries conceitualmente comparáveis: livre e direcionada. Cada série expõe `status`, `data_kind`, `unit`, `transformation`, `latest`, `observations`, `note` e fonte.
-
-`real_growth` é `derived` e depende dos saldos SGS + IPCA mensal. `interest_rates` e `delinquency` são `observed`. A ausência do IPCA não impede taxas e inadimplência de serem publicadas; apenas deixa o crescimento real como `unavailable`.
-
-O navegador carrega o arquivo por `fetch`, filtra 1/3/5 anos ou toda a série e alterna grupos sem nova chamada de rede. A falha desse contrato é isolada: a seção informa `./scripts/update-credit.sh`, mas o restante da aplicação continua funcional.
