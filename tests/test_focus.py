@@ -95,9 +95,13 @@ class HorizonTests(unittest.TestCase):
         self.assertEqual(horizon.window_end, date(2028, 3, 31))
         self.assertEqual(len(horizon_months(horizon)), 12)
 
-    def test_horizon_moves_explicitly_between_june_and_august(self) -> None:
-        self.assertEqual(resolve_br_policy_horizon(date(2026, 7, 1)).key, "2027-Q4")
-        self.assertEqual(resolve_br_policy_horizon(date(2026, 8, 10)).key, "2028-Q1")
+    def test_horizon_changes_only_when_documentation_is_published(self) -> None:
+        self.assertEqual(resolve_br_policy_horizon(date(2025, 5, 12)).key, "2026-Q3")
+        self.assertEqual(resolve_br_policy_horizon(date(2025, 5, 13)).key, "2026-Q4")
+        self.assertEqual(resolve_br_policy_horizon(date(2026, 5, 4)).key, "2027-Q3")
+        self.assertEqual(resolve_br_policy_horizon(date(2026, 5, 5)).key, "2027-Q4")
+        self.assertEqual(resolve_br_policy_horizon(date(2026, 8, 10)).key, "2027-Q4")
+        self.assertEqual(resolve_br_policy_horizon(date(2026, 8, 11)).key, "2028-Q1")
 
     def test_compounds_only_complete_monthly_focus_windows(self) -> None:
         records = parse_focus_monthly_json(SAMPLE)

@@ -12,7 +12,8 @@ Período econômico ou alvo da observação. Exemplos:
 
 - Selic em `2026-09-16`;
 - IPCA de `2026-08`;
-- expectativa Focus para `2028-Q1`.
+- expectativa Focus para `2028-Q1`;
+- hiato estimado para `2026-Q2`.
 
 ### `reference_start` / `reference_end`
 
@@ -20,7 +21,7 @@ Limites normalizados do período de referência.
 
 ### `source_observation_at`
 
-Data/timestamp atribuído pelo próprio conjunto de dados à estatística ou vintage. Em Focus, é a data da estatística. Ela **não implica**, por si só, disponibilidade pública naquela mesma data.
+Data/timestamp atribuído pelo próprio conjunto de dados à estatística ou vintage. Em Focus, é a data da estatística. Para o hiato RI/RPM, identifica a publicação documental que originou o vintage. Ela **não implica**, por si só, que uma estatística Focus estivesse disponível ao público no mesmo instante.
 
 ### `published_at`
 
@@ -28,34 +29,32 @@ Instante/data oficial de publicação quando a fonte permite estabelecê-lo.
 
 ### `available_at`
 
-Primeiro instante defensável em que a informação pode ser usada pelo monitor em uma reconstrução *as known*. Pode coincidir com `published_at`, mas não deve ser inferido retroativamente sem evidência.
+Primeiro instante defensável em que o monitor admite o uso da informação em uma reconstrução histórica.
 
-### `retrieved_at` / `first_seen_at` / `last_seen_at`
+### `retrieved_at` / `first_seen_at`
 
-Tempos operacionais de coleta. Servem para auditoria e detecção de revisões; não substituem data de publicação.
+Momento em que o monitor efetivamente coletou o dado. `first_seen_at` pode provar que uma informação já estava disponível, mas não autoriza retroagir além de evidência defensável.
 
-## Revisões imutáveis
+## Revisões e vintages
 
-`observations` preserva vintages distintos. `vintage_key` identifica o conteúdo de uma revisão para um determinado `series_id + reference_period`.
-
-Há três perguntas diferentes:
+Há três consultas diferentes:
 
 ```text
-Qual é hoje o melhor valor para cada período?
-→ observations_latest()
+última revisão de cada período
+→ observations_latest(...)
 
-O que podia ser conhecido até o instante t?
-→ observations_as_known(..., knowledge_cutoff=t)
+estado conhecido em uma data histórica
+→ observations_as_known(...)
 
-Como a estimativa do mesmo período-alvo evoluiu ao longo das datas da fonte?
+evolução das estimativas do mesmo período-alvo
 → observation_vintages(..., reference_period=...)
 ```
 
-A terceira consulta é indispensável para Focus. Duas previsões para `2028-Q1`, uma em 11/09 e outra em 18/09, são dois pontos da evolução da expectativa, ainda que compartilhem o mesmo `reference_period`.
+A terceira consulta é indispensável para Focus e hiato. Duas previsões para `2028-Q1`, ou duas estimativas sucessivas para `2026-Q2`, são vintages distintos mesmo quando compartilham `reference_period`.
 
-## Séries observadas, pesquisas e estimativas
+## Natureza dos dados
 
-`data_kind` distingue a natureza epistemológica:
+`data_kind` distingue:
 
 - `observed`: medida publicada/observada;
 - `survey`: estatística de pesquisa de expectativas;
@@ -63,9 +62,9 @@ A terceira consulta é indispensável para Focus. Duas previsões para `2028-Q1`
 - `derived`: cálculo determinístico do monitor;
 - `simulated`: cenário local do usuário, não persistido como dado oficial.
 
-## Parâmetros documentais
+## Parâmetros documentais versus séries revisáveis
 
-`parameters` permanece adequado a regimes ou hipóteses documentais pontuais, como uma hipótese de taxa real neutra usada pelo Copom. O Sprint 18 deverá evitar usar esse modelo para uma variável naturalmente temporal e revisável quando `observations` for semanticamente superior — especialmente o hiato do produto.
+`parameters` é usado para regimes ou hipóteses documentais com intervalo de aplicabilidade, como meta de inflação e hipótese de taxa real neutra. O hiato do produto não fica em `parameters`: ele é uma estimativa temporal revisável e é persistido em `observations`, preservando cada vintage de RI/RPM.
 
 ## Seleção *as known at the time*
 
@@ -81,7 +80,7 @@ Nunca se escolhe “a data mais próxima”, pois isso pode incorporar informaç
 
 ## Focus e horizonte de política
 
-O histórico futuro precisa preservar simultaneamente:
+O Focus preserva simultaneamente:
 
 ```text
 horizonte-alvo          reference_period
@@ -89,13 +88,38 @@ vintage da estatística  source_observation_at
 conhecimento defensável available_at
 ```
 
-O cadastro `BR_POLICY_HORIZONS` atual cobre apenas os horizontes já documentados no projeto. O Sprint 18 o substituirá/estenderá por um catálogo documental histórico com proveniência, sem inferência por regra genérica de calendário.
+O catálogo `BR_POLICY_HORIZONS` registra apenas mudanças documentadas do horizonte relevante e suas datas de publicação. Não existe regra genérica de calendário para inferir o horizonte. O histórico atualmente coberto começa no horizonte `2026-Q1`, documentado em setembro de 2024, e segue até `2028-Q1`.
+
+O endpoint Focus fornece a data da estatística, mas não o timestamp histórico de cada publicação. Para o backfill, `available_at` usa o menor entre:
+
+1. sete dias corridos depois de `source_observation_at`, como limite conservador compatível com a cadência semanal documentada pelo BCB;
+2. `first_seen_at`, quando a coleta local comprova disponibilidade anterior.
+
+Essa regra é uma fronteira de conhecimento, não uma afirmação de que a divulgação ocorreu exatamente sete dias depois.
+
+## Disponibilidade histórica da Selic
+
+Para `br.selic.target` (SGS 432), a primeira versão local de cada data histórica é tratada como a meta que já estava em vigor naquela data. Seu `available_at` é, conservadoramente, o fim do dia de referência, limitado por `first_seen_at` para observações correntes. Uma versão diferente observada posteriormente para a mesma data é revisão do provedor e mantém `available_at = first_seen_at`; ela não é retrodatada.
+
+Essa exceção é específica da semântica da meta Selic em vigor e não é generalizada para outras séries SGS.
 
 ## Meta de inflação
 
-Para a Taylor prospectiva histórica, a seleção da meta deve considerar duas condições distintas:
+O catálogo contém os centros formais das metas anuais desde 1999 e a meta contínua vigente desde janeiro de 2025.
+
+Para a Taylor prospectiva histórica, a seleção deve satisfazer duas condições distintas:
 
 1. a meta já era conhecida na data de avaliação;
 2. a meta é aplicável ao período-alvo da expectativa.
 
-Isso é diferente de simplesmente selecionar “a última meta já vigente em t”.
+`parameter_for_reference_date()` implementa essa distinção. Isso evita usar simplesmente “a última meta já vigente em t” quando o horizonte da expectativa está no futuro.
+
+## Taxa real neutra
+
+Não existe uma série observada de `r*`. O monitor preserva as hipóteses documentadas pelo Copom como regimes em degraus e não interpola entre elas. A cobertura curada começa na hipótese de 4,0% registrada em fevereiro de 2023 e inclui as alterações posteriores para 4,5%, 4,75% e 5,0%.
+
+## Hiato do produto
+
+O hiato é não observável e revisável. Cada edição de RI/RPM é um vintage. Por exemplo, uma estimativa publicada em junho pode ser substituída em setembro para o mesmo trimestre sem apagar o valor que era conhecido em junho.
+
+O Sprint 18 persiste os vintages explicitamente publicados nos RI/RPM de setembro de 2024 a setembro de 2026. O Sprint 19 usa apenas o último vintage disponível em cada data de avaliação e registra no ponto derivado qual vintage foi selecionado.

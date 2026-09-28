@@ -1,91 +1,83 @@
-export async function loadOverview(url = "./data/overview.json") {
+async function fetchJson(url) {
   const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(`Falha ao carregar ${url}: HTTP ${response.status}`);
+  if (!response.ok) throw new Error(`Falha ao carregar ${url}: HTTP ${response.status}`);
+  return response.json();
+}
+
+function requireObject(payload, key, contractName) {
+  if (!payload?.[key] || typeof payload[key] !== "object" || Array.isArray(payload[key])) {
+    throw new Error(`Contrato ${contractName} sem ${key} válido.`);
   }
-  const payload = await response.json();
+}
+
+function requireArray(payload, key, contractName) {
+  if (!Array.isArray(payload?.[key])) {
+    throw new Error(`Contrato ${contractName} sem ${key} válido.`);
+  }
+}
+
+function validateView(payload, expectedView, contractName = expectedView) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new TypeError(`Contrato ${contractName} inválido: objeto JSON esperado.`);
+  }
+  if (payload.view !== expectedView) {
+    throw new Error(`Contrato ${contractName} incompatível: view esperada ${expectedView}.`);
+  }
+}
+
+export async function loadOverview(url = "./data/overview.json") {
+  const payload = await fetchJson(url);
   validateOverview(payload);
   return payload;
 }
 
 export function validateOverview(payload) {
-  if (!payload || typeof payload !== "object") {
-    throw new TypeError("Contrato overview inválido: objeto JSON esperado.");
-  }
-  if (payload.schema_version !== 4 || payload.view !== "overview") {
-    throw new Error("Versão do contrato overview não suportada.");
-  }
-  if (!payload.series || typeof payload.series !== "object") {
-    throw new Error("Contrato overview sem coleção de séries.");
-  }
+  validateView(payload, "overview", "overview");
+  requireObject(payload, "series", "overview");
+  requireObject(payload, "availability", "overview");
 }
-
 
 export async function loadYieldCurve(url = "./data/yield-curve.json") {
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) throw new Error(`Falha ao carregar ${url}: HTTP ${response.status}`);
-  const payload = await response.json();
-  if (!payload || payload.schema_version !== 4 || payload.view !== "yield_curve") {
-    throw new Error("Contrato yield_curve não suportado.");
-  }
+  const payload = await fetchJson(url);
+  validateView(payload, "yield_curve", "yield_curve");
+  requireObject(payload, "market", "yield_curve");
   return payload;
 }
-
 
 export async function loadCreditTransmission(url = "./data/credit-transmission.json") {
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) throw new Error(`Falha ao carregar ${url}: HTTP ${response.status}`);
-  const payload = await response.json();
-  if (!payload || payload.schema_version !== 4 || payload.view !== "credit_transmission") {
-    throw new Error("Contrato credit_transmission não suportado.");
-  }
+  const payload = await fetchJson(url);
+  validateView(payload, "credit_transmission", "credit_transmission");
+  requireObject(payload, "groups", "credit_transmission");
   return payload;
 }
-
 
 export async function loadFiscal(url = "./data/fiscal.json") {
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) throw new Error(`Falha ao carregar ${url}: HTTP ${response.status}`);
-  const payload = await response.json();
-  if (
-    !payload ||
-    payload.schema_version !== 4 ||
-    payload.view !== "fiscal"
-  ) {
-    throw new Error("Contrato fiscal não suportado.");
-  }
+  const payload = await fetchJson(url);
+  validateView(payload, "fiscal", "fiscal");
+  requireArray(payload, "flows", "fiscal");
+  requireArray(payload, "debt_positions", "fiscal");
+  requireObject(payload, "dpf_profile", "fiscal");
   return payload;
 }
-
 
 export async function loadExternalSector(url = "./data/external-sector.json") {
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) throw new Error(`Falha ao carregar ${url}: HTTP ${response.status}`);
-  const payload = await response.json();
-  if (!payload || payload.schema_version !== 4 || payload.view !== "external_sector") {
-    throw new Error("Contrato external_sector não suportado.");
-  }
+  const payload = await fetchJson(url);
+  validateView(payload, "external_sector", "external_sector");
+  requireObject(payload, "groups", "external_sector");
   return payload;
 }
-
 
 export async function loadUSBenchmark(url = "./data/us-benchmark.json") {
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) throw new Error(`Falha ao carregar ${url}: HTTP ${response.status}`);
-  const payload = await response.json();
-  if (!payload || payload.schema_version !== 4 || payload.view !== "us_benchmark") {
-    throw new Error("Contrato us_benchmark não suportado.");
-  }
+  const payload = await fetchJson(url);
+  validateView(payload, "us_benchmark", "us_benchmark");
+  requireObject(payload, "groups", "us_benchmark");
   return payload;
 }
 
-
 export async function loadCopomEvents(url = "./data/copom-events.json") {
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) throw new Error(`Falha ao carregar ${url}: HTTP ${response.status}`);
-  const payload = await response.json();
-  if (!payload || payload.schema_version !== 1 || payload.view !== "copom_events") {
-    throw new Error("Contrato copom_events não suportado.");
-  }
+  const payload = await fetchJson(url);
+  validateView(payload, "copom_events", "copom_events");
+  requireArray(payload, "events", "copom_events");
+  requireArray(payload, "decision_markers", "copom_events");
   return payload;
 }

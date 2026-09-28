@@ -1,6 +1,6 @@
 # Painel de Política Monetária
 
-Aplicação auditável para investigar a política monetária brasileira a partir de dados oficiais, expectativas, parâmetros documentais e benchmarks explícitos.
+Aplicação estática e auditável para investigar a política monetária brasileira a partir de dados oficiais, expectativas, parâmetros documentais e benchmarks explícitos. A Regra de Taylor é tratada como referência analítica, não como estimativa de uma “Selic correta”.
 
 ## Princípios
 
@@ -65,6 +65,8 @@ As fronteiras estão descritas em [`docs/architecture.md`](docs/architecture.md)
     └── js/
 ```
 
+Não existem mais os módulos monolíticos `pipeline.py` e `ingestion.py`. Novos domínios devem entrar diretamente em `pipelines/<dominio>.py` e `ingestion/<dominio>.py`.
+
 ## Ambiente
 
 Python **3.11+**. A suíte atual não exige dependências Python de runtime além da biblioteca padrão.
@@ -95,6 +97,8 @@ Atualize os domínios necessários:
 ```bash
 ./scripts/update-selic.sh
 ./scripts/update-focus.sh
+./scripts/update-policy-history.sh
+./scripts/rebuild-focus-history.sh
 ./scripts/update-macro.sh
 ./scripts/update-market-curves.sh
 ./scripts/update-credit.sh
@@ -133,7 +137,7 @@ retrieved_at           instante da coleta
 
 Para séries observadas convencionais, `observations_latest()` devolve a revisão mais recente de cada período. Para pesquisas e previsões, `observation_vintages()` preserva a evolução de estimativas sucessivas para o **mesmo** período-alvo. Isso é essencial para o histórico Focus e para reconstruções *as known at the time*.
 
-## Contrato de indicadores
+## Contrato de indicadores V4
 
 Indicadores exibidos em cartões e diálogos usam campos semanticamente separados:
 
@@ -154,7 +158,7 @@ Tabelas são secundárias ao gráfico, recolhidas por padrão, usam o mesmo inte
 
 O pipeline existente de `market_curves` ainda representa a implementação provisória anterior, baseada em ETTJ pública/DI1. Ele foi isolado e endurecido para que respostas malformadas, autenticação inválida, throttling ou falhas de transporte **não sejam confundidos com ausência de pregão**.
 
-O monitor não mantém uma terceira metodologia de curva apenas para preencher lacunas. Até a PRE/B3 entrar no Sprint 20, o diferencial nominal Brasil−EUA em aproximadamente 10 anos permanece explicitamente indisponível.
+O antigo proxy histórico construído a partir de títulos ofertados pelo Tesouro Direto foi removido no Sprint 17C. O monitor não mantém uma terceira metodologia de curva apenas para preencher lacunas. Até a PRE/B3 entrar no Sprint 20, o diferencial nominal Brasil−EUA em aproximadamente 10 anos permanece explicitamente indisponível.
 
 A substituição definitiva está planejada para o Sprint 20:
 
@@ -166,12 +170,16 @@ A substituição definitiva está planejada para o Sprint 20:
 
 `.env.example` reserva as credenciais opcionais da ANBIMA sem versionar segredos.
 
+## Estado do histórico monetário
+
+Os Sprints 18 e 19 estão concluídos. A base contém metas históricas oficiais, hipóteses documentais de taxa neutra, vintages RI/RPM do hiato e expectativas Focus reconstruídas segundo o horizonte relevante conhecido em cada data. A partir desses insumos, o backend reconstrói semanalmente juro real ex ante, gap monetário real, Taylor prospectiva e Selic − Taylor com *as-of joins* e linhagem por ponto.
+
+Os contratos JSON internos não usam número de versão duplicado entre publicador e navegador. Como ambos evoluem no mesmo repositório, os loaders validam `view` e a estrutura necessária; mudanças incompatíveis devem atualizar publisher, consumidor e testes na mesma alteração.
+
 ## Próximos sprints
 
 O plano detalhado está em [`docs/roadmap.md`](docs/roadmap.md). Em resumo:
 
-- **18:** semântica temporal e insumos monetários históricos;
-- **19:** reconstrução histórica da postura monetária;
 - **20:** curvas de mercado definitivas;
 - **21:** histórico fiscal/Tesouro;
 - **22:** operação, releases atômicos e consolidação.
@@ -183,3 +191,15 @@ O plano detalhado está em [`docs/roadmap.md`](docs/roadmap.md). Em resumo:
 ```
 
 A suíte cobre parsers, persistência, idempotência, vintages, modelos, publishers e contratos do frontend. Testes que dependem de Node são executados quando `node` está disponível.
+
+## Commits
+
+Usar Conventional Commits e explicar principalmente **por que** a alteração foi necessária:
+
+```text
+refactor(pipelines): split orchestration by economic domain
+
+Remove the monolithic pipeline module before historical backfills multiply
+its responsibilities. Domain boundaries keep provider acquisition,
+persistence and publication independently testable.
+```

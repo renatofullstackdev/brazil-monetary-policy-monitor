@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from calendar import monthrange
-from datetime import date, datetime
+from datetime import date, datetime, time, timezone
 from decimal import Decimal
 import json
 import sqlite3
 
 from ..temporal import iso_z
+from ..horizons import conservative_focus_available_on
 from .common import canonical_decimal, stable_hash
 
 FOCUS_SOURCE_KEY = "bcb.focus"
@@ -51,7 +52,7 @@ def ensure_bcb_focus_metadata(connection: sqlite3.Connection) -> tuple[int, int,
                     "temporal_contract": {
                         "reference_period": "forecast target month or policy horizon",
                         "source_observation_at": "source statistic date (Data)",
-                        "available_at": "defensible knowledge timestamp; never inferred from Data alone",
+                        "available_at": "first seen by the monitor or a conservative seven-day publication bound, whichever is earlier",
                     },
                 },
                 sort_keys=True,
@@ -93,7 +94,7 @@ def ensure_bcb_focus_metadata(connection: sqlite3.Connection) -> tuple[int, int,
                 "temporal_contract": {
                     "reference_period": "policy horizon",
                     "source_observation_at": "Focus statistic date used to compose the point",
-                    "available_at": "knowledge timestamp recorded by ingestion",
+                    "available_at": "conservative Focus publication bound combined with the documented horizon availability",
                 },
             },
         ),
@@ -141,6 +142,16 @@ def ensure_bcb_focus_metadata(connection: sqlite3.Connection) -> tuple[int, int,
     return source_id, ids[0], ids[1]
 
 
+def _focus_available_timestamp(survey_date: date, first_seen_at: datetime) -> str:
+    conservative = datetime.combine(
+        conservative_focus_available_on(survey_date), time.max, tzinfo=timezone.utc
+    )
+    if first_seen_at.tzinfo is None:
+        raise ValueError("first_seen_at must be timezone-aware")
+    boundary = min(conservative, first_seen_at.astimezone(timezone.utc))
+    return iso_z(boundary)
+
+
 def _month_end(value: date) -> date:
     return date(value.year, value.month, monthrange(value.year, value.month)[1])
 
@@ -149,7 +160,7 @@ def persist_focus_monthly_records(
     connection: sqlite3.Connection,
     *,
     series_id: int,
-    run_id: int,
+    run_id: int | None,
     records,
     retrieved_at: datetime,
 ) -> tuple[int, int]:
@@ -162,6 +173,7 @@ def persist_focus_monthly_records(
         for record in records:
             period = record.target_month.strftime("%Y-%m")
             source_date = record.survey_date.isoformat()
+            available = _focus_available_timestamp(record.survey_date, retrieved_at)
             vintage_key = stable_hash(
                 period,
                 source_date,
@@ -175,8 +187,8 @@ def persist_focus_monthly_records(
             ).fetchone()
             if existing is not None:
                 connection.execute(
-                    "UPDATE observations SET last_seen_at = ? WHERE id = ?",
-                    (timestamp, int(existing["id"])),
+                    "UPDATE observations SET last_seen_at = ?, available_at = MIN(available_at, ?) WHERE id = ?",
+                    (timestamp, available, int(existing["id"])),
                 )
                 unchanged += 1
                 continue
@@ -195,7 +207,7 @@ def persist_focus_monthly_records(
                     record.target_month.isoformat(),
                     _month_end(record.target_month).isoformat(),
                     float(record.median),
-                    timestamp,
+                    available,
                     timestamp,
                     timestamp,
                     vintage_key,
@@ -204,6 +216,7 @@ def persist_focus_monthly_records(
                     json.dumps(
                         [
                             "publication_timestamp_not_provided_by_endpoint",
+                            "availability_uses_conservative_seven_day_bound_or_first_seen",
                             {"numeroRespondentes": record.respondent_count, "baseCalculo": record.base_calculation},
                         ],
                         sort_keys=True,
@@ -219,7 +232,7 @@ def persist_horizon_expectations(
     connection: sqlite3.Connection,
     *,
     series_id: int,
-    run_id: int,
+    run_id: int | None,
     expectations,
     retrieved_at: datetime,
 ) -> tuple[int, int]:
@@ -238,6 +251,8 @@ def persist_horizon_expectations(
         for item in expectations:
             source_date = item.survey_date.isoformat()
             period = item.horizon.key
+            conservative = datetime.combine(item.available_on, time.max, tzinfo=timezone.utc)
+            available = iso_z(min(conservative, retrieved_at.astimezone(timezone.utc)))
             vintage_key = stable_hash(
                 period,
                 source_date,
@@ -251,8 +266,8 @@ def persist_horizon_expectations(
             ).fetchone()
             if existing is not None:
                 connection.execute(
-                    "UPDATE observations SET last_seen_at = ? WHERE id = ?",
-                    (timestamp, int(existing["id"])),
+                    "UPDATE observations SET last_seen_at = ?, available_at = MIN(available_at, ?) WHERE id = ?",
+                    (timestamp, available, int(existing["id"])),
                 )
                 unchanged += 1
                 continue
@@ -271,7 +286,7 @@ def persist_horizon_expectations(
                     item.horizon.window_start.isoformat(),
                     item.horizon.window_end.isoformat(),
                     float(item.value),
-                    timestamp,
+                    available,
                     timestamp,
                     timestamp,
                     vintage_key,
@@ -280,7 +295,8 @@ def persist_horizon_expectations(
                     json.dumps([
                         "derived_from_monthly_focus_medians",
                         "not_institution_level_cumulative_median",
-                        "availability_is_ingestion_time_until_official_publication_calendar_is_backfilled",
+                        "availability_uses_conservative_focus_bound",
+                        "policy_horizon_selected_as_known_at_availability",
                     ]),
                     source_date,
                 ),

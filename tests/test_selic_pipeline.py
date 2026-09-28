@@ -83,6 +83,11 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(tuple(run), ("succeeded", 3, 3))
             count = connection.execute("SELECT COUNT(*) FROM observations").fetchone()[0]
             self.assertEqual(count, 3)
+            availability = connection.execute(
+                "SELECT reference_period, available_at FROM observations ORDER BY reference_period"
+            ).fetchall()
+            self.assertEqual(availability[0]["reference_period"], "2026-09-01")
+            self.assertTrue(availability[0]["available_at"].startswith("2026-09-01T23:59:59"))
         finally:
             connection.close()
 
@@ -142,6 +147,8 @@ class PipelineTests(unittest.TestCase):
                 """
             ).fetchall()
             self.assertEqual([row["value"] for row in rows], [14.75, 14.5])
+            self.assertTrue(rows[0]["available_at"].startswith("2026-09-03T23:59:59"))
+            self.assertTrue(rows[1]["available_at"].startswith("2026-09-22T12:00:21"))
         finally:
             connection.close()
 

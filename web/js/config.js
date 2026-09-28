@@ -7,12 +7,12 @@ export const RANGE_OPTIONS = Object.freeze([
 ]);
 
 export const DEFAULT_RANGES = Object.freeze({
-  monetaryPolicy: "5",
-  indicatorDetails: "5",
-  credit: "5",
-  fiscal: "5",
-  external: "5",
-  us: "5",
+  monetaryPolicy: "3",
+  indicatorDetails: "3",
+  credit: "3",
+  fiscal: "3",
+  external: "3",
+  us: "3",
 });
 
 export const TABLE_PAGE_SIZE = 48;

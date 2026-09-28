@@ -16,7 +16,6 @@ from .atomic import write_json_atomic
 from .indicator_contract import structure_indicator_contract
 
 
-CREDIT_TRANSMISSION_SCHEMA_VERSION = 4
 IPCA_SERIES_KEY = "br.ipca.monthly"
 
 
@@ -306,7 +305,6 @@ def build_credit_transmission_document(
         if item["status"] == "available" and item.get("latest")
     ]
     return structure_indicator_contract({
-        "schema_version": CREDIT_TRANSMISSION_SCHEMA_VERSION,
         "view": "credit_transmission",
         "country": "BR",
         "generated_at": _iso_z(generated_at),

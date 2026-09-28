@@ -50,7 +50,7 @@ class PublisherTests(unittest.TestCase):
                 connection.close()
 
             payload = json.loads(target.read_text())
-            self.assertEqual(payload["schema_version"], 1)
+            self.assertNotIn("schema_version", payload)
             self.assertEqual(payload["series"]["source_series_id"], "432")
             self.assertEqual(payload["series"]["data_kind"], "observed")
             self.assertEqual(payload["series"]["unit_normalized"], "percent_per_year")

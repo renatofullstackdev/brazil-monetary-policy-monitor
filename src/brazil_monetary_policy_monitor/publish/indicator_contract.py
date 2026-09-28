@@ -22,7 +22,7 @@ INPUT_LABELS: dict[str, str] = {
     "inflation_target": "Meta de inflação aplicável ao horizonte",
     "br.neutral_real_rate.rpm": "Taxa real neutra assumida pelo Copom",
     "neutral_real_rate": "Taxa real neutra assumida pelo Copom",
-    "br.output_gap.rpm": "Hiato do produto estimado pelo Copom",
+    "br.output_gap.copom": "Hiato do produto estimado pelo Copom",
     "output_gap": "Hiato do produto",
     "ex_ante_real_rate": "Juro real ex ante",
     "taylor_prospective": "Taylor prospectiva",
@@ -86,6 +86,7 @@ FREQUENCY_LABELS: dict[str, str] = {
     "on_publication": "conforme cada publicação",
     "monthly_document_release": "mensal, conforme a publicação do relatório",
     "survey_date": "conforme a data da pesquisa Focus",
+    "quarterly_document_vintage": "trimestral, conforme cada vintage publicado pelo Copom",
 }
 
 

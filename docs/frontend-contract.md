@@ -4,9 +4,13 @@
 
 O navegador consome somente arquivos JSON publicados pelo backend. Não chama APIs de BCB, Tesouro, B3, ANBIMA ou FRED diretamente.
 
-Contratos incompatíveis incrementam `schema_version`. A base greenfield atual não preserva leitura das versões antigas de indicadores: `overview`, `credit_transmission`, `fiscal`, `external_sector` e `us_benchmark` e `yield_curve` usam V4.
+Como frontend e publicadores são entregues juntos no mesmo repositório, os contratos internos não usam `schema_version` numérico nem rejeição por versão no navegador. Compatibilidade é verificada pela estrutura efetivamente necessária (`view`, coleções e objetos obrigatórios) e por testes produtor → consumidor. Mudanças estruturais incompatíveis devem atualizar publisher, loader e testes na mesma alteração.
 
-## Indicador V4
+Isso evita duas fontes de verdade — uma versão declarada no Python e outra repetida no JavaScript — sem enfraquecer a validação do formato. Versionamento explícito só deve voltar a ser introduzido se os artefatos passarem a ter consumidores independentes ou ciclos de release distintos.
+
+Isso não remove versões de migração do SQLite nem a versão do manifesto de snapshot bruto: esses formatos persistidos têm ciclo de compatibilidade próprio e não são contratos consumidos pelo frontend.
+
+## Indicador
 
 Um indicador exibível segue, quando aplicável:
 
@@ -80,7 +84,7 @@ O frontend pode apresentar séries com timestamps próprios. Quando uma tabela c
 
 ## Ausência de histórico
 
-`latest` não implica histórico. Um indicador pode ter valor corrente e `observations: []` quando a reconstrução histórica ainda não é metodologicamente defensável. O frontend informa a indisponibilidade sem fabricar pontos.
+`latest` não implica histórico. Um indicador pode ter valor corrente e `observations: []` quando a reconstrução histórica não é metodologicamente defensável. O frontend informa a indisponibilidade sem fabricar pontos. No bloco de postura monetária do Sprint 19, as derivações históricas são publicadas semanalmente e cada ponto inclui a linhagem dos insumos usados no respectivo corte de conhecimento.
 
 ## Simulações
 

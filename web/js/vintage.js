@@ -23,7 +23,7 @@ export async function loadVintageIndex(url = "./data/vintages/index.json") {
     const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) return null;
     const payload = await response.json();
-    if (!payload || payload.schema_version !== 1 || payload.view !== "vintage_index" || !Array.isArray(payload.entries)) {
+    if (!payload || payload.view !== "vintage_index" || !Array.isArray(payload.entries)) {
       return null;
     }
     return payload;

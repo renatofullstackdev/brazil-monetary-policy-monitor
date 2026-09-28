@@ -154,7 +154,7 @@ e não `0.045`.
 
 As funções `classical_taylor` e `prospective_taylor` mantêm `α = 0.5` e `β = 0.5` por definição. A função genérica `taylor_rule` admite coeficientes explícitos somente para especificações nomeadas ou simulações avançadas.
 
-A Taylor prospectiva não decide qual expectativa é economicamente correta. Ela recebe uma expectativa já selecionada pela camada de dados. A futura integração com Focus deverá registrar horizonte, data de conhecimento e fonte antes de chamar o modelo.
+A Taylor prospectiva não decide qual expectativa é economicamente correta. Ela recebe uma expectativa já selecionada pela camada de dados. A integração Focus registra horizonte, data da estatística e fronteira de conhecimento antes de chamar o modelo; a reconstrução histórica do Sprint 19 usa esses campos e nunca seleciona insumo com `available_at` posterior ao corte do ponto.
 
 A Taylor inercial implementa:
 
@@ -192,23 +192,25 @@ The monitor stores raw monthly IPCA medians from the Focus `ExpectativaMercadoMe
 
 This output is a **derived proxy**. The median of each monthly distribution compounded across months is not, in general, equal to the median of institution-level cumulative twelve-month forecasts. The UI and metadata must preserve that distinction.
 
-The policy horizon is not inferred mechanically from the date. It is an explicit, source-backed configuration because the Copom can change the relevant horizon as the policy window moves. The initial registry contains the transition from 2027-Q4 after the June 2026 meeting to 2028-Q1 from the August 2026 meeting onward.
+The policy horizon is not inferred mechanically from the date. It is an explicit, source-backed registry because the Copom can change the relevant horizon as the policy window moves. The Sprint 18 registry covers documented transitions from 2026-Q1 (September 2024) through 2028-Q1 (August 2026), using the publication date of the corresponding minute as the knowledge boundary.
 
-For Focus backfills, `Data` is a provider statistic date (`source_observation_at`). It is not backdated into `available_at`; the latter remains the first time this monitor actually retrieved the vintage unless a stronger publication timestamp is available.
+For Focus backfills, `Data` is a provider statistic date (`source_observation_at`). The historical endpoint does not expose the exact publication timestamp. Because the BCB catalog documents weekly publication, `available_at` uses a conservative seven-calendar-day boundary after `Data`, or an earlier `first_seen_at` when local collection proves that the vintage was already accessible. The seven-day date is a defensible upper bound, not an asserted release timestamp.
 
 ## 14. Insumos documentais e contexto doméstico
 
-A meta, a taxa real neutra e o hiato não são armazenados como séries SGS. Eles são parâmetros documentais versionados porque têm natureza e cronologia próprias.
+Meta de inflação e taxa real neutra são regimes/hipóteses documentais versionados. O hiato do produto é diferente: como é uma estimativa trimestral revisável, o Sprint 18 o modela em `observations` e preserva cada vintage de RI/RPM.
 
-Na configuração corrente do contexto macroeconômico doméstico:
+A cobertura histórica curada é:
 
-- a meta contínua é 3,00% desde janeiro de 2025;
-- `r* = 5,00%` é a estimativa considerada no cenário de referência do Relatório de Política Monetária de junho de 2026;
-- o hiato de `0,4%` refere-se ao 2º trimestre de 2026 no mesmo relatório.
+- meta formal do CMN: centros anuais de 1999 a 2024 e meta contínua de 3,00% desde janeiro de 2025;
+- `r*` do Copom: 4,0% em fevereiro de 2023, 4,5% em junho de 2023, 4,75% em junho de 2024 e 5,0% em dezembro de 2024;
+- hiato: vintages explicitamente publicados nos RI/RPM entre setembro de 2024 e setembro de 2026.
 
-`r*` e hiato são `estimated`. Nenhum dos dois é transformado em observação direta por estar sendo usado no cálculo.
+`r*` e hiato são `estimated`; nenhum deles é transformado em observação direta por estar sendo usado no cálculo. O Sprint 19 reconstrói semanalmente as derivações prospectivas a partir do último vintage Focus defensavelmente disponível em cada semana. No mesmo corte de conhecimento, seleciona a Selic conhecida, a hipótese de `r*`, o último vintage de hiato aplicável e a meta correspondente ao horizonte previsto. Cada ponto publicado preserva essa linhagem.
 
-A Taylor prospectiva corrente pode combinar insumos com referências distintas, mas deve mostrá-las. O valor corrente não gera automaticamente uma série histórica: aplicar o último `r*` ou o último hiato a datas anteriores introduziria informação futura.
+Na SGS 432, a primeira versão local de uma data histórica representa a meta Selic que já estava publicamente em vigor naquela data. Para permitir reconstrução histórica sem confundir data de ingestão local com disponibilidade econômica, essa primeira versão usa o fim do próprio dia de referência como fronteira conservadora. Se o provedor posteriormente alterar o valor da mesma data, a nova revisão só fica disponível a partir de `first_seen_at`; revisões posteriores nunca são retrodatadas.
+
+Para a meta, o horizonte prospectivo exige uma seleção adicional: a meta deve já ser conhecida em `t` **e** aplicar-se ao período futuro previsto. Essa seleção é feita por data de referência, não pela última meta vigente na data corrente.
 
 O contexto macroeconômico inicial é mantido fora da fórmula de Taylor e inclui:
 

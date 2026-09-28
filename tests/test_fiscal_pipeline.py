@@ -86,7 +86,7 @@ class FiscalPipelineTests(unittest.TestCase):
             payload = json.loads((root / "web" / "fiscal.json").read_text())
             self.assertEqual(payload["view"], "fiscal")
             self.assertEqual(len(payload["flows"]), 3)
-            self.assertEqual(payload["schema_version"], 4)
+            self.assertNotIn("schema_version", payload)
             self.assertEqual([item["source"]["sgs_code"] for item in payload["debt_positions"]], [13762, 4536, 4513])
             self.assertEqual([item["key"] for item in payload["debt_positions"]], [
                 "br.fiscal.dbgg_gdp", "br.fiscal.dlgg_gdp", "br.fiscal.dlsp_gdp"

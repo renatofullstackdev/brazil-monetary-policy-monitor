@@ -26,7 +26,7 @@ class USPipelineTests(unittest.TestCase):
             result=update_us_context(database_path=root/'db.sqlite3',raw_root=root/'raw',published_dir=root/'published',us_output_path=out,start=date(2024,1,1),end=date(2026,3,31),fetcher=fake_fetch,clock=lambda:datetime(2026,9,23,tzinfo=timezone.utc))
             self.assertEqual(result['status'],'succeeded'); self.assertEqual(len(result['series']),8)
             payload=json.loads(out.read_text())
-            self.assertEqual(payload['schema_version'],4); self.assertEqual(payload['view'],'us_benchmark')
+            self.assertNotIn('schema_version', payload); self.assertEqual(payload['view'],'us_benchmark')
             self.assertEqual(payload['assumptions']['canonical_rstar'],2.0)
             taylor=payload['groups']['policy']['metrics'][1]
             self.assertEqual(taylor['data_kind'],'derived'); self.assertTrue(taylor['observations'])

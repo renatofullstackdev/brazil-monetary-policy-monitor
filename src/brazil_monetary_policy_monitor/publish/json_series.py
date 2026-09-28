@@ -58,7 +58,6 @@ def publish_series_json(
         series_metadata = {}
     documentation_url = series_metadata.get("documentation_url") or metadata["documentation_url"]
     document = {
-        "schema_version": 1,
         "generated_at": _iso_z(generated_at),
         "series": {
             "key": metadata["key"],

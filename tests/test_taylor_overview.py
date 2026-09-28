@@ -8,7 +8,7 @@ import unittest
 from brazil_monetary_policy_monitor.collectors.bcb_sgs import parse_sgs_json
 from brazil_monetary_policy_monitor.db import initialize_database
 from brazil_monetary_policy_monitor.ingestion.focus import ensure_bcb_focus_metadata
-from brazil_monetary_policy_monitor.ingestion.policy import persist_policy_inputs
+from brazil_monetary_policy_monitor.ingestion.policy import persist_output_gap_vintages, persist_policy_inputs
 from brazil_monetary_policy_monitor.ingestion.runs import start_ingestion_run
 from brazil_monetary_policy_monitor.ingestion.sgs import (
     ensure_bcb_sgs_selic_metadata,
@@ -21,7 +21,7 @@ FIXTURES = Path(__file__).with_name("fixtures")
 
 
 class TaylorOverviewTests(unittest.TestCase):
-    def test_current_taylor_uses_documented_inputs_without_fabricating_history(self) -> None:
+    def test_taylor_reconstructs_weekly_history_from_documented_inputs(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             connection = initialize_database(root / "monitor.sqlite3")
@@ -51,13 +51,19 @@ class TaylorOverviewTests(unittest.TestCase):
             )
             connection.commit()
             persist_policy_inputs(connection, retrieved_at=now)
+            persist_output_gap_vintages(connection, retrieved_at=now)
 
             document = build_overview_document(connection, generated_at=now)
             taylor = document["series"]["taylor_prospective"]
             self.assertEqual(taylor["status"], "available")
             self.assertAlmostEqual(taylor["latest"]["value"], 10.0)
-            self.assertEqual(taylor["observations"], [])
-            self.assertIn("não é uma série histórica reconstruída", " ".join(taylor["caveats"]))
+            self.assertEqual(len(taylor["observations"]), 1)
+            self.assertEqual(taylor["frequency"]["key"], "weekly")
+            point = taylor["observations"][0]
+            self.assertEqual(point["date"], "2026-09-22")
+            self.assertAlmostEqual(point["value"], 10.0)
+            self.assertEqual(point["lineage"]["inflation_target"]["value"], 3.0)
+            self.assertIn("as-of", " ".join(taylor["caveats"]).lower())
             self.assertEqual(document["series"]["inflation_target"]["data_kind"], "observed")
             self.assertEqual(document["series"]["neutral_real_rate"]["data_kind"], "estimated")
             self.assertEqual(document["series"]["output_gap"]["data_kind"], "estimated")

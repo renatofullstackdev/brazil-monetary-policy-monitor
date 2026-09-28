@@ -1,9 +1,11 @@
 """Knowledge-cutoff helpers for revision-aware publication.
 
 The vintage layer makes the distinction between ``latest_revision`` and ``as_known``
-explicit at publication time.  The helpers in this module deliberately use
-``available_at`` as the knowledge boundary.  They never infer an earlier
-availability date merely from the economic reference period.
+explicit at publication time.  The helpers use ``available_at`` as the knowledge
+boundary.  That field normally comes from publication/first-seen evidence; a
+source-specific ingestion rule may set it earlier only when the source semantics
+directly establish that the value was already public (for example, the Selic
+target in force on its reference date).
 """
 
 from __future__ import annotations
@@ -192,8 +194,8 @@ def coverage_summary(connection: sqlite3.Connection, cutoff: str) -> dict[str, o
         "curve_sources_with_known_values": int(curve_count or 0),
         "policy_events_known": int(event_count or 0),
         "caveat": (
-            "As-known usa available_at. Backfills cuja fonte não fornece publicação/revisão "
-            "histórica confiável só se tornam conhecidos quando o monitor os observa; não há "
-            "retrodatação para o período econômico."
+            "As-known usa available_at. Backfills sem evidência de disponibilidade histórica "
+            "só se tornam conhecidos quando o monitor os observa. Exceções exigem semântica "
+            "documentada da própria fonte, como a meta Selic já em vigor na data de referência."
         ),
     }

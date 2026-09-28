@@ -11,15 +11,15 @@ from typing import Any
 
 from ..horizons import resolve_br_policy_horizon
 from ..ingestion.focus import FOCUS_IPCA_POLICY_HORIZON_SERIES_KEY
+from ..ingestion.policy import OUTPUT_GAP_SERIES_KEY
 from ..ingestion.sgs import SELIC_SERIES_KEY
 from ..macro_series import MACRO_SERIES_BY_KEY
-from ..models.monetary import prospective_taylor
+from ..monetary_history import build_monetary_posture_history
 from ..vintages import KnowledgeContext, build_knowledge_context, observation_rows, parameter_row
+from ..db.observations import observation_vintages
 from .atomic import write_json_atomic
 from .indicator_contract import structure_indicator_contract
 
-
-OVERVIEW_SCHEMA_VERSION = 4
 
 
 def _iso_z(value: datetime) -> str:
@@ -116,14 +116,27 @@ def _focus_expected_inflation(connection: sqlite3.Connection, context: Knowledge
             unit="percent_per_year", missing_inputs=["focus.monthly.ipca", "policy_horizon"],
             note="A coleta Focus e a composição no horizonte relevante ainda não foram carregadas.",
         )
-    rows = observation_rows(connection, FOCUS_IPCA_POLICY_HORIZON_SERIES_KEY, context)
+    cutoff = context.cutoff if context.mode == "as_known" else None
+    rows = observation_vintages(
+        connection, FOCUS_IPCA_POLICY_HORIZON_SERIES_KEY, knowledge_cutoff=cutoff
+    )
     if not rows:
         return _unavailable(
             key="expected_inflation", label="Inflação esperada", data_kind="derived",
             unit="percent_per_year", missing_inputs=["focus.monthly.ipca", "policy_horizon"],
-            note="Ainda não há doze medianas mensais Focus suficientes para compor o horizonte relevante do Copom.",
+            note="Ainda não há doze medianas mensais Focus suficientes para compor um horizonte relevante documentado do Copom.",
         )
-    latest = rows[-1]
+    latest = max(rows, key=lambda row: (row["available_at"], row["source_observation_at"] or ""))
+    observations = [
+        {
+            "date": row["source_observation_at"] or row["available_at"][:10],
+            "as_of_date": row["source_observation_at"],
+            "reference_period": row["reference_period"],
+            "value": row["value"],
+            "available_at": row["available_at"],
+        }
+        for row in rows
+    ]
     return {
         "key": "expected_inflation", "series_key": metadata["key"],
         "label": "Inflação esperada", "title": metadata["title"],
@@ -132,7 +145,10 @@ def _focus_expected_inflation(connection: sqlite3.Connection, context: Knowledge
         "display_unit": metadata["unit_original"], "frequency": metadata["frequency"],
         "transformation": metadata["transformation"],
         "inputs": ["focus.monthly.ipca", "policy_horizon"], "missing_inputs": [],
-        "caveats": ["Proxy derivada pela composição das medianas mensais do Focus; não é a mediana de previsões acumuladas por instituição."],
+        "caveats": [
+            "Proxy derivada pela composição das medianas mensais do Focus; não é a mediana de previsões acumuladas por instituição.",
+            "A API Focus não informa o timestamp histórico de publicação; o backfill usa uma fronteira conservadora de até sete dias após a data da estatística, ou a primeira observação local quando anterior.",
+        ],
         "latest": {
             "date": latest["reference_period"],
             "reference_period": latest["reference_period"],
@@ -140,7 +156,7 @@ def _focus_expected_inflation(connection: sqlite3.Connection, context: Knowledge
             "value": latest["value"],
             "available_at": latest["available_at"],
         },
-        "observations": [], "source": _source_document(metadata),
+        "observations": observations, "source": _source_document(metadata),
     }
 
 
@@ -151,7 +167,8 @@ def _policy_horizon_document(generated_at: datetime) -> dict[str, Any] | None:
         return None
     return {
         "country": horizon.country, "reference": horizon.key,
-        "effective_from": horizon.effective_from.isoformat(),
+        "meeting_end": horizon.meeting_end.isoformat(),
+        "available_from": horizon.available_from.isoformat(),
         "window_start": horizon.window_start.isoformat(), "window_end": horizon.window_end.isoformat(),
         "source_label": horizon.source_label, "source_url": horizon.source_url,
         "method": "explicit_source_backed_registry",
@@ -170,6 +187,26 @@ def _parameter_series(
             note=f"O parâmetro {label.lower()} ainda não possui versão documental disponível para esta data.",
         )
     metadata = json.loads(row["metadata_json"] or "{}")
+    cutoff = context.cutoff if context.mode == "as_known" else _iso_z(context.generated_at)
+    history_rows = connection.execute(
+        """
+        SELECT * FROM parameters
+        WHERE key = ? AND available_at <= ?
+        ORDER BY effective_from, available_at, id
+        """,
+        (parameter_key, cutoff),
+    ).fetchall()
+    observations = []
+    for history_row in history_rows:
+        history_metadata = json.loads(history_row["metadata_json"] or "{}")
+        observations.append({
+            "date": history_row["effective_from"],
+            "reference_period": history_metadata.get("reference_period"),
+            "value": history_row["value"],
+            "available_at": history_row["available_at"],
+            "effective_from": history_row["effective_from"],
+            "effective_to": history_row["effective_to"],
+        })
     return {
         "key": key, "parameter_key": parameter_key, "label": label,
         "title": label, "definition": row["methodology"], "status": "available",
@@ -177,11 +214,12 @@ def _parameter_series(
         "frequency": "on_publication", "transformation": "identidade",
         "inputs": [], "missing_inputs": [], "caveats": [metadata["note"]] if metadata.get("note") else [],
         "latest": {
-            "date": metadata.get("reference_period") or row["effective_from"],
+            "date": row["effective_from"],
+            "reference_period": metadata.get("reference_period"),
             "value": row["value"], "available_at": row["available_at"],
             "effective_from": row["effective_from"], "published_at": row["published_at"],
         },
-        "observations": [],
+        "observations": observations,
         "source": {
             "provider": row["source_provider"], "name": metadata.get("source_label") or row["source_name"],
             "documentation_url": metadata.get("source_url") or row["source_documentation_url"],
@@ -190,104 +228,148 @@ def _parameter_series(
     }
 
 
-def _derived_metric(
-    *, key: str, label: str, unit: str, value: float | None,
-    date_value: str | None, available_at: str | None, inputs: list[str],
-    transformation: str, note: str, source: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    if value is None or date_value is None or available_at is None:
+def _output_gap_series(connection: sqlite3.Connection, context: KnowledgeContext) -> dict[str, Any]:
+    metadata = _series_metadata(connection, OUTPUT_GAP_SERIES_KEY)
+    if metadata is None:
         return _unavailable(
-            key=key, label=label, data_kind="derived", unit=unit,
-            missing_inputs=inputs, note=note,
+            key="output_gap", label="Hiato do produto", data_kind="estimated",
+            unit="percentage_points", missing_inputs=[OUTPUT_GAP_SERIES_KEY],
+            note="Os vintages documentais do hiato do produto ainda não foram carregados.",
         )
+    rows = observation_rows(connection, OUTPUT_GAP_SERIES_KEY, context)
+    if not rows:
+        return _unavailable(
+            key="output_gap", label="Hiato do produto", data_kind="estimated",
+            unit="percentage_points", missing_inputs=[OUTPUT_GAP_SERIES_KEY],
+            note="Nenhum vintage do hiato estava disponível na data de conhecimento selecionada.",
+        )
+    latest = max(rows, key=lambda row: (row["available_at"], row["reference_end"], row["id"]))
+
+    def point_document(row: sqlite3.Row) -> dict[str, Any]:
+        flags = json.loads(row["quality_flags_json"] or "[]")
+        provenance = next((item for item in flags if isinstance(item, dict) and item.get("report_key")), {})
+        return {
+            "date": row["reference_period"],
+            "value": row["value"],
+            "available_at": row["available_at"],
+            "as_of_date": row["source_observation_at"],
+            "source_revision": row["source_revision"],
+            "source_label": provenance.get("source_label"),
+            "source_url": provenance.get("source_url"),
+            "source_reference": provenance.get("source_reference"),
+        }
+
+    observations = [point_document(row) for row in rows]
+    latest_point = point_document(latest)
     return {
-        "key": key, "label": label, "status": "available", "data_kind": "derived",
-        "unit": unit, "frequency": "on_publication", "transformation": transformation,
-        "inputs": inputs, "missing_inputs": [], "caveats": [note] if note else [],
-        "latest": {"date": date_value, "value": value, "available_at": available_at},
-        "observations": [], "source": source,
+        "key": "output_gap", "series_key": OUTPUT_GAP_SERIES_KEY,
+        "label": "Hiato do produto", "title": metadata["title"],
+        "definition": metadata["description"], "status": "available",
+        "data_kind": metadata["data_kind"], "unit": metadata["unit_normalized"],
+        "display_unit": metadata["unit_original"], "frequency": metadata["frequency"],
+        "transformation": metadata["transformation"], "inputs": [], "missing_inputs": [],
+        "caveats": ["O hiato é não observável e revisável; cada corte histórico usa apenas o vintage já publicado."],
+        "latest": latest_point,
+        "observations": observations, "source": _source_document(metadata),
     }
 
 
-def _ex_ante_real_rate(selic: dict[str, Any], expectation: dict[str, Any]) -> dict[str, Any]:
-    if selic["status"] != "available" or expectation["status"] != "available":
-        return _unavailable(
-            key="ex_ante_real_rate", label="Juro real ex ante", data_kind="derived",
-            unit="percent_per_year", missing_inputs=["selic", "expected_inflation"],
-            note="Depende da Selic e da expectativa de inflação no horizonte definido.",
-        )
-    return _derived_metric(
-        key="ex_ante_real_rate", label="Juro real ex ante", unit="percent_per_year",
-        value=float(selic["latest"]["value"]) - float(expectation["latest"]["value"]),
-        date_value=expectation["latest"]["date"],
-        available_at=max(selic["latest"]["available_at"], expectation["latest"]["available_at"]),
-        inputs=["selic", "expected_inflation"],
-        transformation="Selic menos a inflação esperada no horizonte da política",
-        note="Aproximação linear da V1: Selic nominal menos inflação esperada no horizonte relevante.",
-    )
-
-
-def _taylor_series(
-    expected: dict[str, Any], target: dict[str, Any], neutral: dict[str, Any],
-    output_gap: dict[str, Any], evaluation_date: date,
+def _derived_history_series(
+    *,
+    key: str,
+    label: str,
+    unit: str,
+    observations: list[dict[str, Any]],
+    inputs: list[str],
+    transformation: str,
+    caveats: list[str],
 ) -> dict[str, Any]:
-    inputs = [expected, target, neutral, output_gap]
-    if any(item["status"] != "available" for item in inputs):
+    if not observations:
         return _unavailable(
-            key="taylor_prospective", label="Taylor prospectiva", data_kind="derived",
+            key=key,
+            label=label,
+            data_kind="derived",
+            unit=unit,
+            missing_inputs=inputs,
+            note=(
+                "Ainda não há um ponto histórico em que todos os insumos necessários "
+                "estejam defensavelmente disponíveis no mesmo corte de conhecimento."
+            ),
+        )
+    return {
+        "key": key,
+        "label": label,
+        "status": "available",
+        "data_kind": "derived",
+        "unit": unit,
+        "frequency": "weekly",
+        "transformation": transformation,
+        "inputs": inputs,
+        "missing_inputs": [],
+        "caveats": caveats,
+        "latest": observations[-1],
+        "observations": observations,
+        "source": None,
+    }
+
+
+def _posture_series(history: dict[str, list[dict[str, Any]]]) -> dict[str, dict[str, Any]]:
+    weekly_note = (
+        "Reconstrução semanal orientada pelos vintages Focus: em cada semana é usado o último "
+        "ponto com disponibilidade defensável e os demais insumos são unidos por corte as-of, "
+        "sem informação futura."
+    )
+    return {
+        "ex_ante_real_rate": _derived_history_series(
+            key="ex_ante_real_rate",
+            label="Juro real ex ante",
             unit="percent_per_year",
-            missing_inputs=[item["key"] for item in inputs if item["status"] != "available"],
-            note="O cálculo exige expectativa, meta, taxa neutra e hiato com proveniência explícita.",
-        )
-    result = prospective_taylor(
-        expected_inflation=float(expected["latest"]["value"]),
-        inflation_target=float(target["latest"]["value"]),
-        neutral_real_rate=float(neutral["latest"]["value"]),
-        output_gap=float(output_gap["latest"]["value"]),
-    )
-    available_at = max(item["latest"]["available_at"] for item in inputs)
-    return {
-        "key": "taylor_prospective", "label": "Taylor prospectiva", "status": "available",
-        "data_kind": "derived", "unit": "percent_per_year", "frequency": "on_publication",
-        "transformation": "Taylor canônica (alpha=0.5, beta=0.5)",
-        "inputs": [item["key"] for item in inputs], "missing_inputs": [],
-        "caveats": [
-            "Benchmark corrente calculado com insumos de referências distintas; não é uma série histórica reconstruída. "
-            f"Inflação: {expected['latest']['date']}; meta: {target['latest']['date']}; "
-            f"r*: {neutral['latest']['date']}; hiato: {output_gap['latest']['date']}."
-        ],
-        "latest": {
-            "date": evaluation_date.isoformat(), "value": result.nominal_rate,
-            "available_at": available_at,
-            "decomposition": {
-                "neutral_real_rate": result.decomposition.neutral_real_rate,
-                "inflation": result.decomposition.inflation,
-                "inflation_gap_response": result.decomposition.inflation_gap_response,
-                "output_gap_response": result.decomposition.output_gap_response,
-            },
-        },
-        # Historical values require historically aligned r* and output-gap vintages.
-        "observations": [], "source": None,
+            observations=history["ex_ante_real_rate"],
+            inputs=["selic", "expected_inflation"],
+            transformation="Selic menos a inflação esperada no horizonte da política",
+            caveats=[
+                "Aproximação linear: Selic nominal menos inflação esperada no horizonte relevante.",
+                weekly_note,
+            ],
+        ),
+        "real_monetary_gap": _derived_history_series(
+            key="real_monetary_gap",
+            label="Gap monetário real",
+            unit="percentage_points",
+            observations=history["real_monetary_gap"],
+            inputs=["ex_ante_real_rate", "neutral_real_rate"],
+            transformation="taxa real ex ante menos taxa real neutra",
+            caveats=[
+                "Diferença entre o juro real ex ante aproximado e a hipótese documental de taxa real neutra.",
+                weekly_note,
+            ],
+        ),
+        "taylor_prospective": _derived_history_series(
+            key="taylor_prospective",
+            label="Taylor prospectiva",
+            unit="percent_per_year",
+            observations=history["taylor_prospective"],
+            inputs=["expected_inflation", "inflation_target", "neutral_real_rate", "output_gap"],
+            transformation="Taylor canônica (alpha=0.5, beta=0.5)",
+            caveats=[
+                "Benchmark mecânico; não é recomendação de política monetária.",
+                "A meta é selecionada pelo período prospectivo da expectativa e precisa já ser conhecida no corte do ponto.",
+                weekly_note,
+            ],
+        ),
+        "selic_minus_taylor": _derived_history_series(
+            key="selic_minus_taylor",
+            label="Selic − Taylor",
+            unit="percentage_points",
+            observations=history["selic_minus_taylor"],
+            inputs=["selic", "taylor_prospective"],
+            transformation="Selic menos Taylor prospectiva",
+            caveats=[
+                "Diferença descritiva entre a Selic e o benchmark de Taylor; não é uma recomendação de política.",
+                weekly_note,
+            ],
+        ),
     }
-
-
-def _current_gap(
-    *, key: str, label: str, left: dict[str, Any], right: dict[str, Any],
-    unit: str, transformation: str, note: str,
-) -> dict[str, Any]:
-    if left["status"] != "available" or right["status"] != "available":
-        return _unavailable(
-            key=key, label=label, data_kind="derived", unit=unit,
-            missing_inputs=[item["key"] for item in (left, right) if item["status"] != "available"],
-            note=note,
-        )
-    return _derived_metric(
-        key=key, label=label, unit=unit,
-        value=float(left["latest"]["value"]) - float(right["latest"]["value"]),
-        date_value=left["latest"]["date"],
-        available_at=max(left["latest"]["available_at"], right["latest"]["available_at"]),
-        inputs=[left["key"], right["key"]], transformation=transformation, note=note,
-    )
 
 
 def _year_month(value: str) -> tuple[int, int]:
@@ -429,22 +511,14 @@ def build_overview_document(
         connection, context=context, parameter_key="br.neutral_real_rate.rpm",
         key="neutral_real_rate", label="Taxa real neutra", fallback_kind="estimated", fallback_unit="percent_per_year",
     )
-    output_gap = _parameter_series(
-        connection, context=context, parameter_key="br.output_gap.rpm",
-        key="output_gap", label="Hiato do produto", fallback_kind="estimated", fallback_unit="percentage_points",
+    output_gap = _output_gap_series(connection, context)
+    posture = _posture_series(
+        build_monetary_posture_history(connection, context=context)
     )
-    ex_ante = _ex_ante_real_rate(selic, expected)
-    taylor = _taylor_series(expected, target, neutral, output_gap, context.effective_date)
-    selic_taylor = _current_gap(
-        key="selic_minus_taylor", label="Selic − Taylor", left=selic, right=taylor,
-        unit="percentage_points", transformation="Selic menos Taylor prospectiva",
-        note="Diferença descritiva entre a Selic corrente e o benchmark de Taylor; não é uma recomendação de política.",
-    )
-    real_gap = _current_gap(
-        key="real_monetary_gap", label="Gap monetário real", left=ex_ante, right=neutral,
-        unit="percentage_points", transformation="taxa real ex ante menos taxa real neutra",
-        note="Diferença entre o juro real ex ante aproximado e a estimativa documental de taxa real neutra.",
-    )
+    ex_ante = posture["ex_ante_real_rate"]
+    real_gap = posture["real_monetary_gap"]
+    taylor = posture["taylor_prospective"]
+    selic_taylor = posture["selic_minus_taylor"]
 
     series = {
         "selic": selic,
@@ -466,7 +540,7 @@ def build_overview_document(
 
     available = sum(item["status"] == "available" for item in series.values())
     return structure_indicator_contract({
-        "schema_version": OVERVIEW_SCHEMA_VERSION, "view": "overview", "country": "BR",
+        "view": "overview", "country": "BR",
         "generated_at": _iso_z(generated_at), **context.contract_fields(),
         "policy_horizon": _policy_horizon_document(context.effective_datetime),
         "availability": {
@@ -476,8 +550,8 @@ def build_overview_document(
         "series": series,
         "notes": [
             "Séries indisponíveis permanecem explícitas; o publicador não cria dados substitutos.",
-            "Meta, taxa neutra e hiato são parâmetros documentais versionados; taxa neutra e hiato são estimativas, não observações.",
-            "A Taylor publicada na base atual é apenas corrente: não há retropropagação de r* ou hiato para fabricar histórico.",
+            "Meta e taxa neutra são regimes documentais versionados; o hiato é uma série de vintages RI/RPM e permanece uma estimativa não observável.",
+            "As métricas prospectivas são reconstruídas semanalmente com joins as-of e linhagem por ponto; nenhum ponto usa informação posterior ao seu corte de conhecimento.",
         ],
     })
 

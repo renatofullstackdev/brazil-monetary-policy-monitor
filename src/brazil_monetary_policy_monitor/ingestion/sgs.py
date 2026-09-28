@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, time, timezone
 from decimal import Decimal
 import json
 import sqlite3
@@ -88,8 +88,75 @@ def ensure_bcb_sgs_selic_metadata(connection: sqlite3.Connection) -> tuple[int, 
     )
     row = connection.execute("SELECT id FROM series WHERE key = ?", (SELIC_SERIES_KEY,)).fetchone()
     assert row is not None
+    series_id = int(row[0])
+    reconcile_selic_availability(connection, series_id=series_id)
     connection.commit()
-    return source_id, int(row[0])
+    return source_id, series_id
+
+
+def _selic_reference_available_at(reference_date, retrieved_at: datetime) -> str:
+    """Return a defensible knowledge boundary for the policy target in force.
+
+    SGS 432 describes the Copom target that is publicly in force on each
+    reference date.  Historical backfills therefore need not pretend that the
+    target became known only when this repository downloaded the old row.  For
+    past dates we use the end of the reference day as a conservative boundary;
+    for the current day an earlier local retrieval remains stronger evidence.
+    """
+
+    if retrieved_at.tzinfo is None:
+        raise ValueError("retrieved_at must be timezone-aware")
+    end_of_reference_day = datetime.combine(
+        reference_date, time.max, tzinfo=timezone.utc
+    )
+    return iso_z(min(end_of_reference_day, retrieved_at.astimezone(timezone.utc)))
+
+
+def reconcile_selic_availability(
+    connection: sqlite3.Connection, *, series_id: int
+) -> int:
+    """Repair legacy Selic backfills whose availability equalled first_seen_at.
+
+    Earlier project versions treated every SGS observation conservatively as
+    known only at local ingestion time.  That is appropriate for ordinary SGS
+    backfills but too conservative for SGS 432: the row states the policy target
+    already in force on its reference date.  This reconciliation is idempotent
+    and never moves availability later.
+    """
+
+    rows = connection.execute(
+        """
+        SELECT id, reference_period, available_at, first_seen_at
+        FROM observations
+        WHERE series_id=?
+        ORDER BY reference_period, first_seen_at, id
+        """,
+        (series_id,),
+    ).fetchall()
+    changed = 0
+    seen_periods: set[str] = set()
+    for row in rows:
+        period = str(row["reference_period"])
+        # Only the first locally observed vintage may inherit the semantic
+        # availability of the target already in force.  A later correction or
+        # provider revision must remain available only from its first local
+        # observation; backdating that revision would introduce future knowledge.
+        if period in seen_periods:
+            continue
+        seen_periods.add(period)
+        try:
+            reference = datetime.fromisoformat(period).date()
+            first_seen = datetime.fromisoformat(str(row["first_seen_at"]).replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        candidate = _selic_reference_available_at(reference, first_seen)
+        if candidate < str(row["available_at"]):
+            connection.execute(
+                "UPDATE observations SET available_at=? WHERE id=?",
+                (candidate, int(row["id"])),
+            )
+            changed += 1
+    return changed
 
 
 def ensure_bcb_sgs_series_metadata(connection: sqlite3.Connection, spec) -> tuple[int, int]:
@@ -152,11 +219,23 @@ def persist_sgs_records(
     """Persist validated scalar observations while preserving changed values as revisions."""
 
     timestamp = iso_z(retrieved_at)
+    series_row = connection.execute("SELECT key FROM series WHERE id=?", (series_id,)).fetchone()
+    if series_row is None:
+        raise ValueError(f"unknown series_id: {series_id}")
+    is_selic = str(series_row["key"]) == SELIC_SERIES_KEY
     inserted = 0
     unchanged = 0
     with connection:
         for record in records:
             period = record.reference_date.isoformat()
+            prior_period = connection.execute(
+                "SELECT 1 FROM observations WHERE series_id=? AND reference_period=? LIMIT 1",
+                (series_id, period),
+            ).fetchone()
+            available = (
+                _selic_reference_available_at(record.reference_date, retrieved_at)
+                if is_selic and prior_period is None else timestamp
+            )
             vintage_key = observation_vintage_key(record)
             existing = connection.execute(
                 """
@@ -167,8 +246,8 @@ def persist_sgs_records(
             ).fetchone()
             if existing is not None:
                 connection.execute(
-                    "UPDATE observations SET last_seen_at = ? WHERE id = ?",
-                    (timestamp, int(existing["id"])),
+                    "UPDATE observations SET last_seen_at = ?, available_at = MIN(available_at, ?) WHERE id = ?",
+                    (timestamp, available, int(existing["id"])),
                 )
                 unchanged += 1
                 continue
@@ -187,7 +266,7 @@ def persist_sgs_records(
                     period,
                     period,
                     float(record.value),
-                    timestamp,
+                    available,
                     timestamp,
                     timestamp,
                     vintage_key,

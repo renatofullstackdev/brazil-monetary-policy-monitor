@@ -19,7 +19,6 @@ from .overview import publish_overview_json
 from .us import publish_us_json
 from .yield_curve import publish_yield_curve_json
 
-VINTAGE_INDEX_SCHEMA_VERSION = 1
 
 Publisher = Callable[..., Path]
 
@@ -80,6 +79,55 @@ def publish_vintage_bundle(
     }
 
 
+
+
+def _default_archive_dates(
+    connection: sqlite3.Connection, *, generated_at: datetime
+) -> list[date]:
+    """Choose static checkpoints without exploding on dense daily Selic rows.
+
+    The archive selector existed before the Sprint 19 Selic availability repair and
+    was driven by documentary/event/other-series knowledge dates.  Backdating the
+    first official Selic vintage to the day in which the target was already in
+    force would otherwise add almost every month since 1999 to the static archive.
+
+    Selic remains fully available inside each bundle; it is excluded only from the
+    *checkpoint trigger*.  All other knowledge dates keep the previous monthly
+    checkpoint policy, preserving Copom/documentary checkpoints already exposed by
+    the UI.
+    """
+
+    rows = connection.execute(
+        """
+        SELECT knowledge_date FROM (
+            SELECT substr(o.available_at, 1, 10) AS knowledge_date
+            FROM observations AS o
+            JOIN series AS s ON s.id = o.series_id
+            WHERE s.key <> 'br.selic.target'
+            UNION
+            SELECT substr(available_at, 1, 10) AS knowledge_date FROM parameters
+            UNION
+            SELECT substr(available_at, 1, 10) AS knowledge_date FROM market_curve_points
+            UNION
+            SELECT substr(available_at, 1, 10) AS knowledge_date FROM event_revisions
+        )
+        WHERE knowledge_date IS NOT NULL AND length(knowledge_date) = 10
+        ORDER BY knowledge_date
+        """
+    ).fetchall()
+    known = [date.fromisoformat(str(row[0])) for row in rows]
+
+    checkpoints: set[date] = set()
+    if known:
+        checkpoints.add(known[0])
+        by_month: dict[tuple[int, int], date] = {}
+        for item in known:
+            by_month[(item.year, item.month)] = item
+        checkpoints.update(by_month.values())
+    checkpoints.add(generated_at.astimezone(timezone.utc).date())
+    return sorted(checkpoints)
+
+
 def publish_vintage_archive(
     connection: sqlite3.Connection,
     *,
@@ -91,16 +139,7 @@ def publish_vintage_archive(
 
     root = Path(root)
     if selected_dates is None:
-        known = known_dates(connection)
-        checkpoints: set[date] = set()
-        if known:
-            checkpoints.add(known[0])
-            by_month: dict[tuple[int, int], date] = {}
-            for item in known:
-                by_month[(item.year, item.month)] = item
-            checkpoints.update(by_month.values())
-        checkpoints.add(generated_at.astimezone(timezone.utc).date())
-        dates = sorted(checkpoints)
+        dates = _default_archive_dates(connection, generated_at=generated_at)
     else:
         dates = sorted(set(selected_dates))
     entries = [
@@ -120,7 +159,6 @@ def publish_vintage_archive(
                 shutil.rmtree(child)
 
     index = {
-        "schema_version": VINTAGE_INDEX_SCHEMA_VERSION,
         "view": "vintage_index",
         "generated_at": _iso_z(generated_at),
         "mode": "as_known",

@@ -15,7 +15,6 @@ from .atomic import write_json_atomic
 from .indicator_contract import structure_indicator_contract
 
 
-EXTERNAL_SCHEMA_VERSION = 4
 
 
 def _iso_z(value: datetime) -> str:
@@ -305,7 +304,6 @@ def build_external_document(
         if metric.get("latest") is not None
     ]
     return structure_indicator_contract({
-        "schema_version": EXTERNAL_SCHEMA_VERSION,
         "view": "external_sector",
         "country": "BR",
         "generated_at": _iso_z(generated_at),

@@ -30,35 +30,35 @@ class FiscalWebTests(unittest.TestCase):
 
 
     @unittest.skipUnless(NODE, "Node.js is optional; fiscal loader contract test skipped")
-    def test_fiscal_loader_accepts_v4_contract(self) -> None:
+    def test_fiscal_loader_accepts_structurally_valid_contract_without_version(self) -> None:
         javascript = r"""
-const version = Number(process.argv[1]);
 globalThis.fetch = async () => ({
   ok: true,
   status: 200,
-  json: async () => ({ schema_version: version, view: "fiscal" }),
+  json: async () => ({ view: "fiscal", flows: [], debt_positions: [], dpf_profile: {} }),
 });
 const { loadFiscal } = await import("./web/js/data.js");
 const payload = await loadFiscal("./data/fiscal.json");
 console.log(JSON.stringify(payload));
 """
         completed = subprocess.run(
-            [NODE, "--input-type=module", "-e", javascript, "4"],
+            [NODE, "--input-type=module", "-e", javascript],
             cwd=ROOT,
             check=True,
             capture_output=True,
             text=True,
         )
         payload = json.loads(completed.stdout)
-        self.assertEqual(payload["schema_version"], 4)
+        self.assertEqual(payload["view"], "fiscal")
+        self.assertNotIn("schema_version", payload)
 
     @unittest.skipUnless(NODE, "Node.js is optional; fiscal loader contract test skipped")
-    def test_fiscal_loader_rejects_unknown_contract_version(self) -> None:
+    def test_fiscal_loader_rejects_invalid_structure(self) -> None:
         javascript = r"""
 globalThis.fetch = async () => ({
   ok: true,
   status: 200,
-  json: async () => ({ schema_version: 99, view: "fiscal" }),
+  json: async () => ({ view: "fiscal", flows: [] }),
 });
 const { loadFiscal } = await import("./web/js/data.js");
 try {
@@ -75,7 +75,7 @@ try {
             capture_output=True,
             text=True,
         )
-        self.assertIn("Contrato fiscal não suportado", completed.stdout)
+        self.assertIn("Contrato fiscal sem debt_positions válido", completed.stdout)
 
     def test_copy_keeps_dbgg_dpf_and_causality_distinct(self) -> None:
         html = (ROOT / "web" / "index.html").read_text(encoding="utf-8").lower()

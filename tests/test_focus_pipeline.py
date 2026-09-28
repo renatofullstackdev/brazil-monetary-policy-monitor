@@ -69,7 +69,7 @@ class FocusPipelineTests(unittest.TestCase):
                 self.assertEqual(derived_count, 2)
                 self.assertIsNone(row["published_at"])
                 self.assertEqual(row["source_observation_at"], "2026-09-11")
-                self.assertTrue(row["available_at"].startswith("2026-09-22T"))
+                self.assertTrue(row["available_at"].startswith("2026-09-18T"))
             finally:
                 connection.close()
 
@@ -136,10 +136,13 @@ class FocusPipelineTests(unittest.TestCase):
             self.assertEqual(expectation["latest"]["date"], "2028-Q1")
             self.assertEqual(real_rate["status"], "available")
             self.assertEqual(real_rate["unit"], "percent_per_year")
+            latest = real_rate["latest"]
             self.assertAlmostEqual(
-                real_rate["latest"]["value"],
-                overview["series"]["selic"]["latest"]["value"] - expectation["latest"]["value"],
+                latest["value"],
+                latest["lineage"]["selic"]["value"]
+                - latest["lineage"]["expected_inflation"]["value"],
             )
+            self.assertLessEqual(latest["lineage"]["selic"]["available_at"], latest["available_at"])
 
     def test_row_ceiling_fails_instead_of_assuming_pagination(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

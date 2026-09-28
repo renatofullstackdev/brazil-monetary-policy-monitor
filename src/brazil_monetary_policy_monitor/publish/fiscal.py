@@ -14,7 +14,6 @@ from .atomic import write_json_atomic
 from .indicator_contract import structure_indicator_contract
 
 
-FISCAL_SCHEMA_VERSION = 4
 FLOW_KEYS = (
     "br.fiscal.primary_result_12m_gdp",
     "br.fiscal.nominal_interest_12m_gdp",
@@ -144,7 +143,6 @@ def build_fiscal_document(
         published_at = max(str(item["published_at"]) for item in available_profile if item["published_at"])
 
     return structure_indicator_contract({
-        "schema_version": FISCAL_SCHEMA_VERSION,
         "view": "fiscal",
         "generated_at": _iso_z(generated_at),
         **context.contract_fields(),

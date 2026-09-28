@@ -55,7 +55,7 @@ class OverviewPublisherTests(unittest.TestCase):
             finally:
                 connection.close()
 
-        self.assertEqual(document["schema_version"], 4)
+        self.assertNotIn("schema_version", document)
         self.assertEqual(document["view"], "overview")
         self.assertEqual(document["knowledge_mode"], "latest_revision")
         self.assertEqual(document["availability"]["status"], "partial")

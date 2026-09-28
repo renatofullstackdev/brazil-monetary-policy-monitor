@@ -7,7 +7,7 @@ from pathlib import Path
 
 from ..collectors.http import fetch_bytes
 from ..db import initialize_database
-from ..ingestion.policy import persist_policy_inputs
+from ..ingestion.policy import persist_output_gap_vintages, persist_policy_inputs
 from ..macro_series import MACRO_SERIES
 from ..publish import publish_overview_json
 from .runtime import Clock, FetchBytes, utc_now
@@ -32,7 +32,9 @@ def update_macro_context(
     if not 1 <= window_years <= 10: raise ValueError("window_years must be between 1 and 10")
     connection = initialize_database(database_path)
     try:
-        policy_inserted, policy_unchanged = persist_policy_inputs(connection, retrieved_at=clock())
+        policy_now = clock()
+        policy_inserted, policy_unchanged = persist_policy_inputs(connection, retrieved_at=policy_now)
+        gap_inserted, gap_unchanged = persist_output_gap_vintages(connection, retrieved_at=policy_now)
         results = update_sgs_series_group(
             connection, specs=MACRO_SERIES, raw_root=raw_root, published_dir=published_dir,
             end=end, start=start, fetcher=fetcher, clock=clock, overlap_days=overlap_days,
@@ -40,8 +42,11 @@ def update_macro_context(
             collector_version=COLLECTOR_VERSION, frequency="monthly",
         )
         publish_overview_json(connection, output_path=overview_path, generated_at=clock())
-        return {"status":"succeeded", "policy_inputs_inserted":policy_inserted,
-                "policy_inputs_unchanged":policy_unchanged, "series":results,
+        return {"status":"succeeded", "policy_inputs_inserted":policy_inserted + gap_inserted,
+                "policy_inputs_unchanged":policy_unchanged + gap_unchanged,
+                "policy_parameters_inserted": policy_inserted,
+                "output_gap_vintages_inserted": gap_inserted,
+                "series":results,
                 "overview_path":str(overview_path)}
     finally:
         connection.close()

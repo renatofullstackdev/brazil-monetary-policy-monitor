@@ -45,3 +45,43 @@ def parameter_latest(
         """,
         params,
     ).fetchone()
+
+
+def parameter_for_reference_date(
+    connection: sqlite3.Connection,
+    key: str,
+    *,
+    reference_date: str,
+    knowledge_cutoff: str,
+) -> sqlite3.Row | None:
+    """Return the parameter known by ``knowledge_cutoff`` that applies to ``reference_date``.
+
+    Unlike :func:`parameter_latest`, this supports parameters announced in
+    advance, such as an inflation target for a future calendar year. A row is
+    eligible only if it was already public at the knowledge cutoff and its
+    effective interval contains the requested reference date.
+    """
+
+    return connection.execute(
+        """
+        SELECT
+            p.*,
+            s.provider AS source_provider,
+            s.name AS source_name,
+            s.url AS source_url,
+            s.documentation_url AS source_documentation_url
+        FROM parameters AS p
+        LEFT JOIN sources AS s ON s.id = p.source_id
+        WHERE p.key = :key
+          AND p.available_at <= :knowledge_cutoff
+          AND p.effective_from <= :reference_date
+          AND (p.effective_to IS NULL OR p.effective_to >= :reference_date)
+        ORDER BY p.available_at DESC, p.effective_from DESC, p.id DESC
+        LIMIT 1
+        """,
+        {
+            "key": key,
+            "reference_date": reference_date,
+            "knowledge_cutoff": knowledge_cutoff,
+        },
+    ).fetchone()

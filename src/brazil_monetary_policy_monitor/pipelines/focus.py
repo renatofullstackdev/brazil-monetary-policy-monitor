@@ -1,19 +1,21 @@
-"""Focus IPCA collection and current policy-horizon composition."""
+"""Focus IPCA collection and historical policy-horizon composition."""
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
+from decimal import Decimal
 import sqlite3
 
 from ..collectors.bcb_focus import (
+    FocusMonthlyRecord,
     build_focus_monthly_url,
     iter_focus_windows,
     parse_focus_monthly_json,
 )
 from ..collectors.http import fetch_bytes
 from ..db import initialize_database
-from ..horizons import derive_horizon_expectations, resolve_br_policy_horizon
+from ..horizons import derive_historical_horizon_expectations, resolve_br_policy_horizon
 from ..ingestion.focus import (
     FOCUS_IPCA_MONTHLY_SERIES_KEY,
     FOCUS_IPCA_POLICY_HORIZON_SERIES_KEY,
@@ -69,13 +71,7 @@ def update_focus_ipca(
     page_size: int = 10_000,
     window_days: int = 30,
 ) -> dict[str, object]:
-    """Collect monthly Focus medians and compose the currently registered horizon.
-
-    Historical horizon switching belongs to the historical Focus increment. The persisted temporal
-    contract already preserves the target horizon, source statistic date and
-    availability timestamp separately so that backfill can be added without a
-    schema rewrite.
-    """
+    """Collect monthly Focus medians and rebuild horizon-aligned historical vintages."""
 
     if start > end:
         raise ValueError("start date must not be after end date")
@@ -140,8 +136,11 @@ def update_focus_ipca(
             retrieved_at=retrieved_at,
         )
 
-        horizon = resolve_br_policy_horizon(end)
-        expectations = derive_horizon_expectations(records, horizon=horizon)
+        expectations = derive_historical_horizon_expectations(records)
+        try:
+            horizon = resolve_br_policy_horizon(end)
+        except LookupError:
+            horizon = None
         derived_inserted, derived_unchanged = persist_horizon_expectations(
             connection,
             series_id=horizon_series_id,
@@ -180,7 +179,7 @@ def update_focus_ipca(
             "records_received": received,
             "records_inserted": inserted,
             "records_unchanged": unchanged,
-            "horizon": horizon.key,
+            "horizon": None if horizon is None else horizon.key,
             "horizon_expectations": len(expectations),
             "published_path": str(published_path),
             "overview_path": str(overview_path),
@@ -209,5 +208,102 @@ def update_focus_ipca(
                 error=error,
             )
         raise
+    finally:
+        connection.close()
+
+
+def rebuild_focus_policy_horizon_history(
+    *,
+    database_path: str | Path,
+    published_path: str | Path | None = None,
+    overview_path: str | Path | None = None,
+    clock: Clock = utc_now,
+) -> dict[str, object]:
+    """Rebuild derived policy-horizon vintages from already persisted raw Focus data.
+
+    This is intentionally offline: Sprint 18 can reclassify historical raw
+    observations against the source-backed horizon registry without refetching
+    or mutating the provider payloads.
+    """
+
+    connection = initialize_database(database_path)
+    try:
+        _, monthly_series_id, horizon_series_id = ensure_bcb_focus_metadata(connection)
+        # Reclassify historical raw Focus availability conservatively. The API
+        # exposes the statistic date but not the historical release timestamp.
+        # Never move availability later than first_seen_at, because a local
+        # observation is itself proof that the data was already accessible.
+        raw_rows = connection.execute(
+            "SELECT id, source_observation_at, first_seen_at FROM observations WHERE series_id=? AND source_observation_at IS NOT NULL",
+            (monthly_series_id,),
+        ).fetchall()
+        from ..horizons import conservative_focus_available_on
+        from ..temporal import iso_z
+        with connection:
+            for raw in raw_rows:
+                survey_date = date.fromisoformat(str(raw["source_observation_at"])[:10])
+                conservative = datetime.combine(
+                    conservative_focus_available_on(survey_date), time.max, tzinfo=timezone.utc
+                )
+                first_seen = datetime.fromisoformat(str(raw["first_seen_at"]).replace("Z", "+00:00"))
+                available = iso_z(min(conservative, first_seen.astimezone(timezone.utc)))
+                connection.execute(
+                    "UPDATE observations SET available_at=? WHERE id=?",
+                    (available, int(raw["id"])),
+                )
+        rows = connection.execute(
+            """
+            SELECT reference_start, value, source_observation_at
+            FROM observations
+            WHERE series_id=? AND source_observation_at IS NOT NULL
+            ORDER BY source_observation_at, reference_start
+            """,
+            (monthly_series_id,),
+        ).fetchall()
+        records = [
+            FocusMonthlyRecord(
+                survey_date=date.fromisoformat(str(row["source_observation_at"])[:10]),
+                target_month=date.fromisoformat(str(row["reference_start"])[:10]),
+                median=Decimal(str(row["value"])),
+                respondent_count=None,
+                base_calculation=0,
+            )
+            for row in rows
+        ]
+        expectations = derive_historical_horizon_expectations(records)
+        now = clock()
+        with connection:
+            connection.execute("DELETE FROM observations WHERE series_id=?", (horizon_series_id,))
+        inserted, unchanged = persist_horizon_expectations(
+            connection,
+            series_id=horizon_series_id,
+            run_id=None,
+            expectations=expectations,
+            retrieved_at=now,
+        )
+        if published_path is not None:
+            publish_series_json(
+                connection,
+                series_key=FOCUS_IPCA_POLICY_HORIZON_SERIES_KEY,
+                output_path=published_path,
+                generated_at=clock(),
+            )
+        if overview_path is not None:
+            publish_overview_json(connection, output_path=overview_path, generated_at=clock())
+        survey_dates = sorted({record.survey_date for record in records})
+        derived_dates = sorted({item.survey_date for item in expectations})
+        return {
+            "status": "succeeded",
+            "raw_records": len(records),
+            "survey_dates": len(survey_dates),
+            "first_survey_date": None if not survey_dates else survey_dates[0].isoformat(),
+            "last_survey_date": None if not survey_dates else survey_dates[-1].isoformat(),
+            "horizon_expectations": len(expectations),
+            "derived_survey_dates": len(derived_dates),
+            "survey_dates_without_complete_horizon_window": len(set(survey_dates) - set(derived_dates)),
+            "records_inserted": inserted,
+            "records_unchanged": unchanged,
+            "horizons": sorted({item.horizon.key for item in expectations}),
+        }
     finally:
         connection.close()

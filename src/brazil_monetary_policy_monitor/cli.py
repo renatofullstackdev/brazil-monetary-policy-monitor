@@ -38,8 +38,10 @@ from .pipelines.focus import (
     DEFAULT_FOCUS_INITIAL_LOOKBACK_DAYS,
     DEFAULT_FOCUS_OVERLAP_DAYS,
     resolve_focus_incremental_start,
+    rebuild_focus_policy_horizon_history,
     update_focus_ipca,
 )
+from .pipelines.policy import sync_policy_inputs
 from .pipelines.macro import (
     DEFAULT_MACRO_LOOKBACK_DAYS,
     DEFAULT_MACRO_OVERLAP_DAYS,
@@ -142,6 +144,25 @@ def _update_focus(args: argparse.Namespace) -> int:
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
+
+
+def _sync_policy_history(args: argparse.Namespace) -> int:
+    result = sync_policy_inputs(
+        database_path=args.database,
+        overview_path=args.overview_output,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def _rebuild_focus_history(args: argparse.Namespace) -> int:
+    result = rebuild_focus_policy_horizon_history(
+        database_path=args.database,
+        published_path=args.output,
+        overview_path=args.overview_output,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
 
 
 def _update_macro(args: argparse.Namespace) -> int:
@@ -416,6 +437,23 @@ def build_parser() -> argparse.ArgumentParser:
     focus.add_argument("--retries", type=int, default=DEFAULT_HTTP_RETRIES)
     focus.add_argument("--backoff-seconds", type=float, default=DEFAULT_HTTP_BACKOFF_SECONDS)
     focus.set_defaults(handler=_update_focus)
+
+    focus_rebuild = subparsers.add_parser(
+        "rebuild-focus-history",
+        help="Rebuild historical policy-horizon Focus vintages from the local raw series",
+    )
+    focus_rebuild.add_argument("--database", type=Path, default=Path("data/database/monitor.sqlite3"))
+    focus_rebuild.add_argument("--output", type=Path, default=Path("data/published/br-focus-ipca-policy-horizon.json"))
+    focus_rebuild.add_argument("--overview-output", type=Path, default=Path("web/data/overview.json"))
+    focus_rebuild.set_defaults(handler=_rebuild_focus_history)
+
+    policy_history = subparsers.add_parser(
+        "sync-policy-history",
+        help="Persist source-backed inflation-target, neutral-rate and output-gap history",
+    )
+    policy_history.add_argument("--database", type=Path, default=Path("data/database/monitor.sqlite3"))
+    policy_history.add_argument("--overview-output", type=Path, default=Path("web/data/overview.json"))
+    policy_history.set_defaults(handler=_sync_policy_history)
 
     macro = subparsers.add_parser(
         "update-macro",

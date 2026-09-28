@@ -12,7 +12,6 @@ from ..db.events import events_as_known, events_latest
 from ..vintages import build_knowledge_context
 from .atomic import write_json_atomic
 
-COPOM_EVENTS_SCHEMA_VERSION = 1
 
 
 def _iso_z(value: datetime) -> str:
@@ -82,7 +81,6 @@ def build_copom_events_document(
         reverse=True,
     )[:24]
     return {
-        "schema_version": COPOM_EVENTS_SCHEMA_VERSION,
         "view": "copom_events",
         "generated_at": _iso_z(generated_at),
         **context.contract_fields(),

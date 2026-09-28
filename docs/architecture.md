@@ -86,7 +86,7 @@ Transforma o estado normalizado em contratos de leitura. Não deve fazer chamada
 
 ### `web/`
 
-Consome contratos estáticos. Estado de visualização, ranges e simulações locais ficam no navegador. Parsing de provedor, reconstrução de vintages e regras *as-of* econômicas não ficam aqui.
+Consome contratos estáticos. Estado de visualização, ranges e simulações locais ficam no navegador. Parsing de provedor, reconstrução de vintages e regras *as-of* econômicas não ficam aqui. Como publicadores e frontend são entregues juntos, os loaders validam `view` e campos estruturais necessários em vez de repetir números de `schema_version`. Os contratos de domínio são carregados independentemente: falha em um JSON deve degradar apenas o módulo correspondente.
 
 ## Dependências permitidas
 

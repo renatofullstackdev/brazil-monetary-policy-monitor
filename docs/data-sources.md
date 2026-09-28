@@ -26,21 +26,22 @@ O catálogo de Dados Abertos do BCB expõe séries SGS com recursos JSON e CSV, 
 
 O catálogo informa que, desde 26/03/2025, consultas JSON/CSV de séries históricas diárias exigem filtro por datas e cada intervalo está limitado a dez anos. Dez anos é tratado apenas como **limite máximo do contrato**, não como tamanho recomendado de requisição. Depois de uma consulta histórica de dez anos exceder o timeout em uso real, o coletor passou a usar janelas operacionais de um ano por padrão. O valor pode ser configurado entre 1 e 10 anos sem alterar a semântica dos dados.
 
-O JSON da série fornece `data` e `valor`, mas não um timestamp histórico de publicação por observação. Consequentemente:
+O JSON da série fornece `data` e `valor`, mas não um timestamp histórico de publicação por observação. Para a SGS 432 há uma distinção semântica importante: o valor descreve a meta Selic que estava publicamente em vigor na data de referência. Consequentemente:
 
 - `reference_period` vem de `data`;
 - `published_at` fica `NULL`;
-- `available_at` é a primeira coleta em que o monitor observou aquela versão do valor;
-- uma mudança posterior de valor para a mesma data cria novo vintage;
-- não alegamos reconstruir vintages anteriores ao início do nosso próprio monitoramento apenas a partir desse endpoint.
+- a primeira versão local de uma data histórica recebe `available_at` no fim do próprio dia de referência, sem ultrapassar `first_seen_at`;
+- uma mudança posterior de valor para a mesma data cria novo vintage e só fica disponível a partir de `first_seen_at`;
+- revisões posteriores nunca são retrodatadas;
+- essa regra é específica da meta Selic e não é aplicada automaticamente às demais séries SGS.
 
 Decisão geral: outros códigos SGS só serão adicionados depois de conferência na fonte oficial. Não copiar listas de códigos de sites terceiros.
 
 ### Expectativas de Mercado / Focus
 
-Uso esperado: inflação, Selic, PIB, câmbio e outras expectativas em diferentes horizontes.
+Uso atual: medianas mensais do IPCA e composição de doze meses no horizonte relevante do Copom.
 
-Decisão: a API OData e sua semântica de datas/horizontes serão verificadas na implementação inicial do Focus antes de criar contratos estáveis.
+A API OData fornece `Data` como data da estatística. O catálogo do BCB informa cálculo diário e divulgação semanal das estatísticas, mas o endpoint histórico não fornece o timestamp exato de cada publicação. O monitor mantém `Data` como `source_observation_at` e usa uma fronteira conservadora de sete dias para `available_at`, antecipada somente quando `first_seen_at` comprova disponibilidade anterior.
 
 ### Copom e Relatório de Política Monetária
 
@@ -181,13 +182,13 @@ As seis séries desta etapa são mensais. O SGS pode devolver a mesma observaç�
 
 ### Parâmetros documentais
 
-A camada macroeconômica doméstica também registra, separadamente das séries SGS:
+A camada monetária histórica registra, separadamente das séries SGS:
 
-- `br.inflation.target`: meta contínua de 3,00%, Resolução CMN nº 5.141/2024;
-- `br.neutral_real_rate.rpm`: 5,00%, RPM junho/2026, p. 65;
-- `br.output_gap.rpm`: 0,4%, 2º trimestre de 2026, RPM junho/2026, p. 68.
+- `br.inflation.target`: regimes oficiais dos centros das metas anuais desde 1999 e meta contínua de 3,00% desde 2025;
+- `br.neutral_real_rate.rpm`: hipóteses documentais do Copom em degraus, com cobertura curada desde fevereiro de 2023;
+- `br.output_gap.copom`: vintages trimestrais revisáveis extraídos dos RI/RPM, com cobertura curada de setembro de 2024 a setembro de 2026.
 
-Esses valores carregam URL, referência, período, metodologia, publicação e natureza (`observed` ou `estimated`). A sincronização é idempotente e não depende de scraping do PDF: os valores curados fazem parte do registro metodológico auditável e qualquer atualização exige nova versão explícita.
+Meta e taxa neutra são `parameters`, pois representam regimes/hipóteses documentais. O hiato é uma série `estimated` em `observations`, porque um mesmo trimestre pode ser revisado em relatórios posteriores. A sincronização é idempotente e preserva URL, referência, data de publicação e vintage.
 
 ## Séries de crédito homologadas na camada de crédito e transmissão monetária
 
@@ -302,7 +303,7 @@ No LLM API key and no FRED API key are required by `update-us.sh`. Raw CSV respo
 `as_known` does not imply that every provider has a complete real-time archive. The publication layer uses the strongest chronology already persisted by each collector and never substitutes `reference_period` for a missing availability date.
 
 - BCB/SGS and other backfilled series without authoritative per-observation publication timestamps accumulate revisions locally from the first monitor observation onward.
-- Focus preserves the provider statistic date separately as `source_observation_at`; historical `available_at` is not backdated from that field.
+- Focus preserves the provider statistic date separately as `source_observation_at`; historical `available_at` uses the conservative weekly-publication boundary documented in the Sprint 18 temporal model, never the statistic date itself.
 - FRED/BEA/CBO series collected through the keyless graph CSV accumulate local revisions only. The official FRED/ALFRED real-time/vintage web-service endpoints require an API key, so A camada de vintages does not silently add that operational dependency.
 
 The vintage UI therefore describes its historical mode as **local defensible vintages**, not as a guarantee of complete provider-native real-time history.

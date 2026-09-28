@@ -63,11 +63,11 @@ class MacroPipelineTests(unittest.TestCase):
             )
             self.assertEqual(result["status"], "succeeded")
             self.assertEqual(len(result["series"]), len(MACRO_SERIES))
-            self.assertEqual(result["policy_inputs_inserted"], 3)
+            self.assertEqual(result["policy_inputs_inserted"], 45)
             connection = initialize_database(root / "monitor.sqlite3")
             keys = {row[0] for row in connection.execute("SELECT key FROM series")}
             self.assertTrue({spec.key for spec in MACRO_SERIES}.issubset(keys))
-            self.assertEqual(connection.execute("SELECT COUNT(*) FROM parameters").fetchone()[0], 3)
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM parameters").fetchone()[0], 31)
             connection.close()
 
     def test_overview_derives_macro_context_without_changing_source_rows(self) -> None:
@@ -143,7 +143,7 @@ class MacroPipelineTests(unittest.TestCase):
             self.assertTrue(all(item["records_inserted"] == 12 for item in first["series"]))
             self.assertTrue(all(item["records_inserted"] == 0 for item in second["series"]))
             self.assertTrue(all(item["records_unchanged"] == 12 for item in second["series"]))
-            self.assertEqual(second["policy_inputs_unchanged"], 3)
+            self.assertEqual(second["policy_inputs_unchanged"], 45)
 
     def test_incremental_empty_sgs_window_is_a_valid_zero_record_refresh(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

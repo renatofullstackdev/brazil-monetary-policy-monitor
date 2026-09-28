@@ -13,7 +13,7 @@ NOW = datetime(2026, 9, 24, 21, 0, tzinfo=timezone.utc)
 
 
 class MarketCurvesPipelineTests(unittest.TestCase):
-    def test_pipeline_persists_both_sources_and_publishes_schema_v4(self) -> None:
+    def test_pipeline_persists_both_sources_and_publishes_structural_contract(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             output = root / "web" / "data" / "yield-curve.json"
@@ -29,7 +29,7 @@ class MarketCurvesPipelineTests(unittest.TestCase):
             )
             self.assertEqual(result["status"], "succeeded")
             payload = json.loads(output.read_text(encoding="utf-8"))
-            self.assertEqual(payload["schema_version"], 4)
+            self.assertNotIn("schema_version", payload)
             self.assertEqual(payload["market"]["ettj"]["status"], "available")
             self.assertEqual(payload["market"]["di"]["status"], "available")
             self.assertEqual(payload["market"]["ettj"]["latest"]["effective_date"], "2026-09-24")

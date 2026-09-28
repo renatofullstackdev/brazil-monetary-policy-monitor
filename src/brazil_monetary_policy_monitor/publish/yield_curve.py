@@ -24,7 +24,6 @@ from ..vintages import build_knowledge_context, market_curve_rows
 from .atomic import write_json_atomic
 
 
-YIELD_CURVE_SCHEMA_VERSION = 4
 
 
 def _iso_z(value: datetime) -> str:
@@ -271,7 +270,6 @@ def publish_yield_curve_json(
     market_available = ettj["status"] == "available" or di["status"] == "available"
 
     payload = {
-        "schema_version": YIELD_CURVE_SCHEMA_VERSION,
         "view": "yield_curve",
         "generated_at": _iso_z(generated_at),
         **context.contract_fields(),

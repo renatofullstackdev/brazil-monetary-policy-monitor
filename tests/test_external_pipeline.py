@@ -80,7 +80,7 @@ class ExternalPipelineTests(unittest.TestCase):
             self.assertEqual(result["status"], "succeeded")
             self.assertEqual(len(result["series"]), len(EXTERNAL_SERIES))
             payload = json.loads((root / "web" / "external-sector.json").read_text())
-            self.assertEqual(payload["schema_version"], 4)
+            self.assertNotIn("schema_version", payload)
             self.assertEqual(payload["view"], "external_sector")
             self.assertEqual(set(payload["groups"]), {
                 "fx_nominal", "fx_real", "external_balance", "portfolio", "reserves"

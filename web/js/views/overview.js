@@ -41,13 +41,13 @@ function renderCurrentReading(series) {
   if (!target) return;
   const selic = latestNumber(series.selic);
   const taylor = latestNumber(series.taylor_prospective);
+  const selicTaylorGap = latestNumber(series.selic_minus_taylor);
   const realRate = latestNumber(series.ex_ante_real_rate);
   const neutral = latestNumber(series.neutral_real_rate);
   const realGap = latestNumber(series.real_monetary_gap);
   const parts = [];
-  if (selic !== null && taylor !== null) {
-    const difference = selic - taylor;
-    parts.push(`A Selic está ${formatPoints(Math.abs(difference))} ${difference >= 0 ? "acima" : "abaixo"} da Taylor de referência.`);
+  if (selicTaylorGap !== null) {
+    parts.push(`No último ponto reconstruído, a Selic está ${formatPoints(Math.abs(selicTaylorGap))} ${selicTaylorGap >= 0 ? "acima" : "abaixo"} da Taylor de referência.`);
   } else if (selic !== null) {
     parts.push(`A Selic está em ${formatRate(selic)}, mas a Taylor de referência ainda não pode ser calculada com todos os insumos documentados.`);
   }
@@ -107,7 +107,7 @@ function renderCards(container, keys, series) {
 const INTERPRETATIONS = {
   selic: "Meta para a taxa básica de juros definida pelo Copom. É o principal instrumento operacional da política monetária brasileira.",
   taylor_prospective: "Regra mecânica de referência que combina inflação esperada, meta, taxa real neutra e hiato do produto. A diferença para a Selic é descritiva, não uma recomendação de política.",
-  selic_minus_taylor: "Mostra quantos pontos percentuais a Selic corrente está acima ou abaixo da regra de Taylor usada como referência pelo monitor.",
+  selic_minus_taylor: "Mostra quantos pontos percentuais a Selic, no mesmo corte de conhecimento, está acima ou abaixo da regra de Taylor usada como referência pelo monitor.",
   ex_ante_real_rate: "Aproxima o juro real prospectivo subtraindo da Selic a inflação esperada no horizonte relevante.",
   real_monetary_gap: "Compara o juro real ex ante com a estimativa de taxa real neutra. É uma medida de distância em relação ao parâmetro neutro, não uma classificação normativa automática.",
   expected_inflation: "Inflação prospectiva usada pela regra de referência. O monitor compõe medianas mensais Focus no horizonte relevante do Copom e identifica o resultado como cálculo derivado.",

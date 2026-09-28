@@ -18,7 +18,6 @@ from ..vintages import KnowledgeContext, build_knowledge_context, market_curve_r
 from .atomic import write_json_atomic
 from .indicator_contract import structure_indicator_contract
 
-US_SCHEMA_VERSION = 4
 US_INFLATION_TARGET = 2.0
 US_CANONICAL_RSTAR = 2.0
 
@@ -239,7 +238,7 @@ def publish_us_json(
       "br_us":{"label":"Brasil × EUA","metrics":[br_us_policy,br_us_nom10,br_us_real10],"chart_series":[br_us_policy,br_us_nom10,br_us_real10]},
     }
     latest_dates=[m["latest"]["date"] for g in groups.values() for m in g["metrics"] if m.get("latest")]
-    payload=structure_indicator_contract({"schema_version":US_SCHEMA_VERSION,"view":"us_benchmark","generated_at":_iso_z(generated_at), **context.contract_fields(),
+    payload=structure_indicator_contract({"view":"us_benchmark","generated_at":_iso_z(generated_at), **context.contract_fields(),
              "status":"available" if latest_dates else "unavailable","latest_reference":max(latest_dates) if latest_dates else None,
              "assumptions":{"inflation_target":US_INFLATION_TARGET,"canonical_rstar":US_CANONICAL_RSTAR,"alpha":0.5,"beta":0.5},
              "groups":groups,

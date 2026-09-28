@@ -21,7 +21,7 @@ class ExternalWebTests(unittest.TestCase):
         data = (ROOT / "web" / "js" / "data.js").read_text(encoding="utf-8")
         app = (ROOT / "web" / "js" / "app.js").read_text(encoding="utf-8")
         self.assertIn('./data/external-sector.json', data)
-        self.assertIn('payload.view !== "external_sector"', data)
+        self.assertIn('validateView(payload, "external_sector", "external_sector")', data)
         self.assertIn("loadExternalSector", app)
         self.assertNotIn("api.bcb.gov.br", app)
 
