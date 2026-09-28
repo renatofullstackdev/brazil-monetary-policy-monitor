@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Monitor auditável da política monetária brasileira.">
+  <title>Monitor de Política Monetária</title>
+  <link rel="stylesheet" href="./css/app.css">
+</head>
+<body>
+  <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
+
+  <header class="site-header">
+    <div class="shell header-inner">
+      <div>
+        <p class="eyebrow">Brasil · política monetária</p>
+        <h1>Monitor de Política Monetária</h1>
+        <p class="subtitle">Análise da política monetária com rigor matemático e dados auditáveis.</p>
+      </div>
+      <div class="header-status" aria-live="polite">
+        <span id="data-status" class="status-dot" aria-hidden="true"></span>
+        <span id="generated-at">Carregando dados…</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="knowledge-bar" aria-labelledby="knowledge-controls-title">
+    <div class="shell knowledge-bar-inner">
+      <div class="knowledge-copy">
+        <p class="section-kicker">Dados no tempo</p>
+        <h2 id="knowledge-controls-title">Qual conjunto de informações você quer analisar?</h2>
+      </div>
+      <div class="knowledge-controls">
+        <label for="knowledge-select">Visão</label>
+        <select id="knowledge-select">
+          <option value="latest_revision">Informações mais recentes</option>
+          <option value="as_known">Como era conhecido em</option>
+        </select>
+        <label class="sr-only" for="knowledge-date">Data de conhecimento</label>
+        <input id="knowledge-date" type="date" disabled>
+        <button id="knowledge-apply" class="secondary-button" type="button">Aplicar</button>
+      </div>
+      <p id="vintage-status" class="knowledge-status" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <nav class="question-nav" aria-label="Perguntas de análise">
+    <div class="shell">
+      <p class="section-kicker">Roteiro de análise</p>
+      <div class="question-nav-links">
+        <a href="#situacao-title">Postura atual</a>
+        <a href="#contexto-title">Inflação e atividade</a>
+        <a href="#simulador-title">Sensibilidade</a>
+        <a href="#curva-title">Expectativas de mercado</a>
+        <a href="#credito-title">Crédito</a>
+        <a href="#fiscal-title">Fiscal</a>
+        <a href="#external-title">Ambiente externo</a>
+        <a href="#explorer-title">Relacionar indicadores</a>
+        <a href="#copom-title">Comunicação</a>
+      </div>
+    </div>
+  </nav>
+
+  <main id="conteudo" class="shell main-layout">
+
+    <section id="postura" aria-labelledby="situacao-title" class="analysis-section analysis-section-primary">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Postura monetária</p>
+          <h2 id="situacao-title">Como a Selic se compara às referências?</h2>
+          <p class="section-intro">A comparação separa o nível nominal da Selic de três referências úteis: a regra de Taylor, o juro real ex ante e a taxa real neutra.</p>
+        </div>
+        <p id="knowledge-mode" class="context-label"></p>
+      </div>
+
+      <div id="current-reading" class="analysis-answer" aria-live="polite">Aguardando insumos para sintetizar a leitura atual…</div>
+      <div id="primary-cards" class="metric-grid metric-grid-primary" aria-live="polite"></div>
+
+      <details class="assumption-panel analysis-details">
+        <summary>Quais hipóteses entram na Taylor de referência?</summary>
+        <div class="panel-heading details-heading">
+          <div>
+            <h3>Premissas da Taylor prospectiva</h3>
+            <p>Inflação esperada, meta, taxa real neutra e hiato ficam separados dos dados observados para deixar a hipótese auditável.</p>
+          </div>
+        </div>
+        <div id="assumption-cards" class="metric-grid metric-grid-assumptions"></div>
+      </details>
+    </section>
+
+    <section id="inflacao-atividade" aria-labelledby="contexto-title" class="context-section analysis-section">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Inflação, atividade e trabalho</p>
+          <h2 id="contexto-title">O que sustenta ou reduz a pressão sobre os juros?</h2>
+          <p class="section-intro">Inflação corrente e seus componentes ajudam a avaliar persistência; atividade, hiato e mercado de trabalho ajudam a observar pressão de demanda. Nenhum indicador isolado determina a Selic.</p>
+        </div>
+      </div>
+      <div id="context-cards" class="metric-grid metric-grid-context" aria-live="polite"></div>
+    </section>
+
+    <section id="sensibilidade" aria-labelledby="simulador-title" class="simulator-section analysis-section">
+      <div class="section-heading simulator-heading">
+        <div>
+          <p class="section-kicker">Sensibilidade</p>
+          <h2 id="simulador-title">O que precisaria mudar para essa leitura mudar?</h2>
+          <p class="section-intro">Altere as hipóteses e observe como a regra responde.</p>
+        </div>
+        <button id="simulator-reset" class="secondary-button" type="button">Restaurar cenário-base</button>
+      </div>
+
+      <div class="simulator-layout">
+        <div>
+          <div id="simulator-controls" class="simulator-controls"></div>
+          <p id="simulator-status" class="simulator-status" aria-live="polite"></p>
+        </div>
+
+        <aside class="simulator-results" aria-labelledby="simulador-resultado-title">
+          <h3 id="simulador-resultado-title">Resultado</h3>
+          <dl class="sim-summary">
+            <div><dt>Taylor no cenário-base</dt><dd id="sim-official-taylor">—</dd></div>
+            <div class="sim-summary-primary"><dt>Taylor no cenário testado</dt><dd id="sim-taylor">—</dd></div>
+            <div><dt>Diferença vs. cenário-base</dt><dd id="sim-vs-official">—</dd></div>
+            <div><dt>Selic atual</dt><dd id="sim-current-selic">—</dd></div>
+            <div><dt>Selic − Taylor testada</dt><dd id="sim-selic-gap">—</dd></div>
+            <div id="sim-inertial-row" hidden><dt>Taylor com ajuste parcial</dt><dd id="sim-inertial-taylor">—</dd></div>
+          </dl>
+
+          <div class="decomposition" aria-labelledby="decomposicao-title">
+            <h3 id="decomposicao-title">De onde vem o resultado?</h3>
+            <div class="decomposition-row" data-decomposition="neutral"><span>Taxa real neutra</span><strong class="decomposition-value">—</strong></div>
+            <div class="decomposition-row" data-decomposition="inflation"><span>Inflação esperada</span><strong class="decomposition-value">—</strong></div>
+            <div class="decomposition-row" data-decomposition="inflation_gap"><span>Resposta ao desvio da inflação</span><strong class="decomposition-value">—</strong></div>
+            <div class="decomposition-row" data-decomposition="output_gap"><span>Resposta ao hiato</span><strong class="decomposition-value">—</strong></div>
+            <div class="decomposition-row decomposition-total" data-decomposition="total"><span>Taylor testada</span><strong class="decomposition-value">—</strong></div>
+          </div>
+        </aside>
+      </div>
+
+      <details class="analysis-exploration" id="simulator-exploration">
+        <summary>Explorar sensibilidade e parâmetros avançados</summary>
+        <div class="exploration-grid">
+          <div>
+            <h3>Mapa de sensibilidade</h3>
+            <p class="exploration-copy">Cada célula recalcula a Taylor combinando inflação esperada e hiato. O centro corresponde ao cenário testado.</p>
+            <div id="simulator-sensitivity" class="sensitivity-wrap" aria-live="polite"></div>
+          </div>
+          <div>
+            <h3>Parâmetros da regra</h3>
+            <p class="exploration-copy">Use apenas para testar robustez da especificação. Os valores não são dados observados e não são persistidos.</p>
+            <div id="simulator-advanced-controls" class="advanced-controls"></div>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section aria-labelledby="historico-title" class="history-section">
+      <div class="section-heading history-heading">
+        <div>
+          <p class="section-kicker">Evolução no tempo</p>
+          <h2 id="historico-title">Como a postura monetária mudou?</h2>
+          <p class="section-intro">O histórico ajuda a separar a fotografia atual do percurso da Selic. Marcas do Copom situam decisões no tempo, sem atribuir a elas, isoladamente, os movimentos posteriores.</p>
+        </div>
+        <div id="range-controls" class="range-controls" role="group" aria-label="Período do gráfico">
+          <button type="button" data-range="1" aria-pressed="false">1A</button>
+          <button type="button" data-range="3" aria-pressed="false">3A</button>
+          <button type="button" data-range="5" aria-pressed="false">5A</button>
+          <button type="button" data-range="10" aria-pressed="true">10A</button>
+          <button type="button" data-range="all" aria-pressed="false">Tudo</button>
+        </div>
+      </div>
+
+      <div class="chart-panel">
+        <div class="chart-legend" aria-label="Séries do gráfico">
+          <span><span class="legend-line legend-selic" aria-hidden="true"></span>Selic</span>
+          <span id="taylor-legend"><span class="legend-line legend-taylor" aria-hidden="true"></span>Taylor de referência</span>
+        </div>
+        <div id="history-message" class="inline-note"></div>
+        <div id="history-chart" class="chart" role="img" aria-label="Histórico da Selic e da Taylor prospectiva"></div>
+        <p id="chart-summary" class="sr-only" aria-live="polite"></p>
+      </div>
+
+      <details class="data-table-panel">
+        <summary>Ver dados do período selecionado</summary>
+        <div class="table-wrap">
+          <table>
+            <caption class="sr-only">Observações recentes no período selecionado</caption>
+            <thead>
+              <tr>
+                <th scope="col">Data</th>
+                <th scope="col">Selic</th>
+                <th scope="col">Taylor de referência</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body"></tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+
+    <section aria-labelledby="curva-title" class="yield-curve-section">
+      <div class="section-heading yield-curve-heading">
+        <div>
+          <p class="section-kicker">Expectativas de mercado</p>
+          <h2 id="curva-title">O mercado está precificando juros menores ou maiores à frente?</h2>
+          <p class="section-intro">Comece pela trajetória de juros do DI para comparar a precificação dos vencimentos com a Selic atual. Use a ETTJ da ANBIMA para decompor a curva soberana em juros nominais, juros reais e inflação implícita. As duas leituras contêm prêmios de mercado e não são previsões puras.</p>
+        </div>
+        <p id="yield-curve-date" class="context-label">Aguardando dados…</p>
+      </div>
+
+      <div id="yield-curve-unavailable" class="error-panel" hidden></div>
+      <div id="yield-curve-content">
+        <div class="curve-toolbar curve-family-toolbar">
+          <div id="curve-family-controls" class="range-controls" role="group" aria-label="Leitura da curva de mercado">
+            <button type="button" data-curve-family="di" aria-pressed="true">Trajetória de juros · DI B3</button>
+            <button type="button" data-curve-family="ettj" aria-pressed="false">Curva zero-cupom · ANBIMA</button>
+          </div>
+        </div>
+
+        <div class="curve-toolbar">
+          <div id="curve-kind-controls" class="range-controls" role="group" aria-label="Tipo de curva">
+            <button type="button" data-curve-kind="nominal" aria-pressed="true">Nominal</button>
+            <button type="button" data-curve-kind="real" aria-pressed="false">Real</button>
+            <button type="button" data-curve-kind="implicit" aria-pressed="false">Inflação implícita</button>
+          </div>
+          <div class="curve-compare-controls">
+            <label for="curve-compare">Comparar com</label>
+            <select id="curve-compare">
+              <option value="none">Sem comparação</option>
+              <option value="one_month">1 mês antes</option>
+              <option value="one_year">1 ano antes</option>
+              <option value="previous_copom">Copom anterior</option>
+              <option value="custom">Data personalizada</option>
+            </select>
+            <label class="sr-only" for="curve-custom-date">Data personalizada</label>
+            <input id="curve-custom-date" type="date" hidden>
+          </div>
+        </div>
+
+        <div class="curve-view-row">
+          <div id="curve-di-mode-controls" class="range-controls" role="group" aria-label="Como ler o DI futuro" hidden>
+            <button type="button" data-di-mode="rates" aria-pressed="true">Taxa até o vencimento</button>
+            <button type="button" data-di-mode="forwards" aria-pressed="false">Taxa entre vencimentos · forward</button>
+          </div>
+          <div id="curve-view-controls" class="range-controls" role="group" aria-label="Visualização da curva">
+            <button type="button" data-curve-view="levels" aria-pressed="true">Níveis</button>
+            <button type="button" data-curve-view="changes" aria-pressed="false">Reprecificação</button>
+          </div>
+        </div>
+
+        <div id="yield-curve-family-status" class="curve-family-status" aria-live="polite"></div>
+        <div id="yield-curve-guide" class="analysis-answer curve-analysis-guide" aria-live="polite"></div>
+
+        <div id="yield-curve-metrics" class="metric-grid metric-grid-curve" aria-live="polite"></div>
+
+        <div class="chart-panel">
+          <div id="yield-curve-legend" class="chart-legend" aria-label="Curvas exibidas"></div>
+          <div id="yield-curve-note" class="inline-note"></div>
+          <div id="yield-curve-chart" class="chart curve-chart" role="img" aria-label="Curva de juros por prazo até o vencimento"></div>
+          <p id="yield-curve-summary" class="sr-only" aria-live="polite"></p>
+        </div>
+
+        <details class="data-table-panel">
+          <summary>Tabela da curva selecionada</summary>
+          <div class="table-wrap">
+            <table>
+              <caption class="sr-only">Pontos da curva de juros selecionada</caption>
+              <thead><tr><th id="yield-curve-table-col-1" scope="col">Prazo</th><th id="yield-curve-table-col-2" scope="col">Atual</th><th id="yield-curve-table-col-3" scope="col">Comparação</th></tr></thead>
+              <tbody id="yield-curve-table-body"></tbody>
+            </table>
+          </div>
+        </details>
+
+        <p id="yield-curve-method-note" class="curve-method-note">ETTJ ANBIMA: estrutura a termo zero-cupom em dias úteis. DI1 B3: taxas/preços de ajuste; forwards derivados em base 252 dias úteis. O DI1 é uma fonte provisória e será substituído pela estrutura TaxaSwap/PRE.</p>
+      </div>
+    </section>
+
+    <section aria-labelledby="credito-title" class="credit-section">
+      <div class="section-heading credit-heading">
+        <div>
+          <p class="section-kicker">Transmissão monetária</p>
+          <h2 id="credito-title">A política monetária já chegou ao crédito?</h2>
+          <p class="section-intro">Taxas das novas operações mostram o preço do crédito; crescimento real do saldo mostra quantidade; inadimplência ajuda a observar efeitos posteriores sobre os tomadores. As relações são descritivas e podem ocorrer com defasagem.</p>
+        </div>
+        <p id="credit-date" class="context-label">Aguardando dados…</p>
+      </div>
+
+      <div id="credit-unavailable" class="error-panel" hidden></div>
+      <div id="credit-content">
+        <div class="credit-toolbar">
+          <div id="credit-mode-controls" class="range-controls" role="group" aria-label="Indicador de crédito">
+            <button type="button" data-credit-mode="real_growth" aria-pressed="true">Crescimento real</button>
+            <button type="button" data-credit-mode="interest_rates" aria-pressed="false">Taxas</button>
+            <button type="button" data-credit-mode="delinquency" aria-pressed="false">Inadimplência</button>
+          </div>
+          <div id="credit-range-controls" class="range-controls" role="group" aria-label="Período do gráfico de crédito">
+            <button type="button" data-credit-range="1" aria-pressed="false">1A</button>
+            <button type="button" data-credit-range="3" aria-pressed="false">3A</button>
+            <button type="button" data-credit-range="5" aria-pressed="true">5A</button>
+            <button type="button" data-credit-range="all" aria-pressed="false">Tudo</button>
+          </div>
+        </div>
+
+        <div id="credit-metrics" class="metric-grid metric-grid-credit" aria-live="polite"></div>
+
+        <div class="chart-panel">
+          <div id="credit-legend" class="chart-legend" aria-label="Séries de crédito exibidas"></div>
+          <div id="credit-note" class="inline-note"></div>
+          <div id="credit-chart" class="chart credit-chart" role="img" aria-label="Histórico dos indicadores de crédito livre e direcionado"></div>
+          <p id="credit-summary" class="sr-only" aria-live="polite"></p>
+        </div>
+
+        <details class="data-table-panel">
+          <summary>Ver dados do período selecionado</summary>
+          <div class="table-wrap">
+            <table>
+              <caption class="sr-only">Observações de crédito no período selecionado</caption>
+              <thead><tr><th scope="col">Data</th><th scope="col">Livre</th><th scope="col">Direcionado</th></tr></thead>
+              <tbody id="credit-table-body"></tbody>
+            </table>
+          </div>
+        </details>
+
+        <p class="credit-method-note">O crescimento real é derivado do saldo nominal em 12 meses dividido pelo fator de inflação do IPCA no mesmo intervalo. Taxas médias são das novas operações; inadimplência corresponde a atraso superior a 90 dias.</p>
+      </div>
+    </section>
+
+    <section aria-labelledby="fiscal-title" class="fiscal-section">
+      <div class="section-heading fiscal-heading">
+        <div>
+          <p class="section-kicker">Fiscal</p>
+          <h2 id="fiscal-title">O fiscal está pressionando demanda ou prêmio de risco?</h2>
+          <p class="section-intro">Fluxos fiscais ajudam a observar o impulso corrente; estoques, composição e vencimentos da dívida ajudam a investigar prêmio de financiamento. São canais diferentes e aparecem separados.</p>
+        </div>
+        <p id="fiscal-date" class="context-label">Aguardando dados…</p>
+      </div>
+
+      <div id="fiscal-unavailable" class="error-panel" hidden></div>
+      <div id="fiscal-content">
+        <div class="credit-toolbar">
+          <div id="fiscal-mode-controls" class="range-controls" role="group" aria-label="Visão fiscal">
+            <button type="button" data-fiscal-mode="flows" aria-pressed="true">Fluxos</button>
+            <button type="button" data-fiscal-mode="debt" aria-pressed="false">Estoques</button>
+          </div>
+          <div id="fiscal-range-controls" class="range-controls" role="group" aria-label="Período do gráfico fiscal">
+            <button type="button" data-fiscal-range="1" aria-pressed="false">1A</button>
+            <button type="button" data-fiscal-range="3" aria-pressed="false">3A</button>
+            <button type="button" data-fiscal-range="5" aria-pressed="true">5A</button>
+            <button type="button" data-fiscal-range="10" aria-pressed="false">10A</button>
+            <button type="button" data-fiscal-range="all" aria-pressed="false">Tudo</button>
+          </div>
+        </div>
+        <div id="fiscal-metrics" class="metric-grid metric-grid-fiscal" aria-live="polite"></div>
+        <div class="chart-panel">
+          <div id="fiscal-legend" class="chart-legend" aria-label="Séries fiscais exibidas"></div>
+          <div id="fiscal-note" class="inline-note"></div>
+          <div id="fiscal-chart" class="chart fiscal-chart" role="img" aria-label="Histórico dos indicadores fiscais"></div>
+        </div>
+        <details class="analysis-exploration fiscal-reconciliation-panel">
+          <summary>Como primário e juros se combinam no resultado nominal?</summary>
+          <p class="exploration-copy">A conferência usa a convenção oficial da NFSP na última data comum às três séries. Ela ajuda a ler a composição contábil, não atribui os juros nominais exclusivamente à Selic.</p>
+          <div id="fiscal-reconciliation" class="table-wrap" aria-live="polite"></div>
+        </details>
+
+        <details class="data-table-panel">
+          <summary>Ver dados do período selecionado</summary>
+          <div class="table-wrap"><table><caption class="sr-only">Observações fiscais no período selecionado</caption><thead><tr><th scope="col">Data</th><th id="fiscal-table-head-1" scope="col">Primário</th><th id="fiscal-table-head-2" scope="col">Juros</th><th id="fiscal-table-head-3" scope="col">Nominal</th></tr></thead><tbody id="fiscal-table-body"></tbody></table></div>
+        </details>
+
+        <div class="fiscal-profile-panel">
+          <div class="panel-heading"><div><h3>Perfil da Dívida Pública Federal</h3><p>Indicadores oficiais do Relatório Mensal da Dívida (RMD) preservados por data de publicação.</p></div><p id="fiscal-profile-date" class="context-label"></p></div>
+          <div id="fiscal-profile-metrics" class="metric-grid metric-grid-fiscal-profile"></div>
+          <div class="fiscal-composition-panel"><h3>Composição por indexador</h3><div id="fiscal-composition"></div></div>
+          <p class="credit-method-note">DPF, DBGG, DLGG e DLSP têm coberturas e metodologias distintas. Prazo médio, custo e liquidez são os valores publicados pelo Tesouro; o monitor não os reconstrói por aproximações próprias.</p>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="external-title" class="external-section">
+      <div class="section-heading external-heading">
+        <div>
+          <p class="section-kicker">Ambiente externo · Brasil</p>
+          <h2 id="external-title">O ambiente externo está ajudando ou pressionando o Brasil?</h2>
+          <p class="section-intro">Câmbio, conta corrente, investimento direto, carteira e reservas mostram canais externos diferentes. Use-os em conjunto: o painel não estima câmbio justo nem atribui o real a uma causa única.</p>
+        </div>
+        <p id="external-date" class="context-label">Aguardando dados…</p>
+      </div>
+
+      <div id="external-unavailable" class="error-panel" hidden></div>
+      <div id="external-content">
+        <div class="credit-toolbar external-toolbar">
+          <div id="external-mode-controls" class="range-controls" role="group" aria-label="Visão do setor externo">
+            <button type="button" data-external-mode="fx_nominal" aria-pressed="true">USD/BRL</button>
+            <button type="button" data-external-mode="fx_real" aria-pressed="false">Câmbio real</button>
+            <button type="button" data-external-mode="external_balance" aria-pressed="false">Conta externa</button>
+            <button type="button" data-external-mode="portfolio" aria-pressed="false">Carteira</button>
+            <button type="button" data-external-mode="reserves" aria-pressed="false">Reservas</button>
+          </div>
+          <div id="external-range-controls" class="range-controls" role="group" aria-label="Período do gráfico do setor externo">
+            <button type="button" data-external-range="1" aria-pressed="false">1A</button>
+            <button type="button" data-external-range="3" aria-pressed="false">3A</button>
+            <button type="button" data-external-range="5" aria-pressed="true">5A</button>
+            <button type="button" data-external-range="10" aria-pressed="false">10A</button>
+            <button type="button" data-external-range="all" aria-pressed="false">Tudo</button>
+          </div>
+        </div>
+
+        <div id="external-metrics" class="metric-grid metric-grid-external" aria-live="polite"></div>
+
+        <div class="chart-panel external-chart-panel">
+          <div id="external-legend" class="chart-legend" aria-label="Séries do setor externo exibidas"></div>
+          <div id="external-note" class="inline-note"></div>
+          <div id="external-chart" class="chart external-chart" role="img" aria-label="Histórico dos indicadores do setor externo e câmbio"></div>
+          <p id="external-summary" class="sr-only" aria-live="polite"></p>
+        </div>
+
+        <details class="data-table-panel">
+          <summary>Ver dados do período selecionado</summary>
+          <div class="table-wrap">
+            <table>
+              <caption class="sr-only">Observações do setor externo no período selecionado</caption>
+              <thead><tr><th scope="col">Data</th><th id="external-table-head-1" scope="col">Série</th><th id="external-table-head-2" scope="col">Comparação</th></tr></thead>
+              <tbody id="external-table-body"></tbody>
+            </table>
+          </div>
+        </details>
+
+        <p class="credit-method-note">Fluxos, estoques e preços externos permanecem conceitualmente separados. Compare-os com os diferenciais Brasil–EUA no bloco seguinte ou no explorador de relações.</p>
+      </div>
+    </section>
+
+    <section aria-labelledby="us-title" class="us-section">
+      <div class="section-heading us-heading">
+        <div><p class="section-kicker">Ambiente externo · Estados Unidos</p><h2 id="us-title">Quanto do diferencial brasileiro vem do contraste com os EUA?</h2><p class="section-intro">Juros, inflação e atividade nos EUA ajudam a contextualizar os diferenciais Brasil–EUA. A comparação é descritiva e não constitui previsão de câmbio nem recomendação de política.</p></div>
+        <p id="us-date" class="context-label">Aguardando dados…</p>
+      </div>
+      <div id="us-unavailable" class="error-panel" hidden></div>
+      <div id="us-content">
+        <div class="credit-toolbar us-toolbar">
+          <div id="us-mode-controls" class="range-controls" role="group" aria-label="Visão dos Estados Unidos">
+            <button type="button" data-us-mode="policy" aria-pressed="true">Política</button>
+            <button type="button" data-us-mode="inflation_activity" aria-pressed="false">Inflação e atividade</button>
+            <button type="button" data-us-mode="treasuries" aria-pressed="false">Tesouro dos EUA</button>
+            <button type="button" data-us-mode="br_us" aria-pressed="false">Brasil × EUA</button>
+          </div>
+          <div id="us-range-controls" class="range-controls" role="group" aria-label="Período do gráfico dos EUA">
+            <button type="button" data-us-range="1" aria-pressed="false">1A</button><button type="button" data-us-range="3" aria-pressed="false">3A</button><button type="button" data-us-range="5" aria-pressed="true">5A</button><button type="button" data-us-range="10" aria-pressed="false">10A</button><button type="button" data-us-range="all" aria-pressed="false">Tudo</button>
+          </div>
+        </div>
+        <div id="us-metrics" class="metric-grid metric-grid-us" aria-live="polite"></div>
+        <div class="chart-panel us-chart-panel"><div id="us-legend" class="chart-legend" aria-label="Séries dos EUA exibidas"></div><div id="us-note" class="inline-note"></div><div id="us-chart" class="chart external-chart us-chart" role="img" aria-label="Histórico das referências dos Estados Unidos"></div></div>
+        <details class="data-table-panel"><summary>Ver dados do período selecionado</summary><div class="table-wrap"><table><thead><tr><th scope="col">Data</th><th id="us-table-head-1" scope="col">Série 1</th><th id="us-table-head-2" scope="col">Série 2</th><th id="us-table-head-3" scope="col">Série 3</th></tr></thead><tbody id="us-table-body"></tbody></table></div></details>
+        <p class="credit-method-note">A Taylor dos EUA usa r*=2% como hipótese canônica, não como estimativa corrente do Fed. O hiato usa PIB potencial do CBO. O diferencial real de 10 anos usa a ETTJ real ANBIMA; o diferencial nominal permanece indisponível enquanto a curva PRE/B3 histórica não estiver disponível.</p>
+      </div>
+    </section>
+
+    <section id="relacoes" aria-labelledby="explorer-title" class="explorer-section analysis-section">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Exploração livre</p>
+          <h2 id="explorer-title">Como dois indicadores se movem juntos?</h2>
+          <p class="section-intro">Escolha duas séries, uma transformação e uma defasagem. A ferramenta serve para investigar co-movimentos e timing; associação visual ou estatística não implica causalidade.</p>
+        </div>
+      </div>
+      <div id="explorer-unavailable" class="inline-note" hidden></div>
+      <div id="explorer-content" class="explorer-panel">
+        <div class="explorer-controls">
+          <label>Indicador A<select id="explorer-series-a"></select></label>
+          <label>Indicador B<select id="explorer-series-b"></select></label>
+          <label>Transformação<select id="explorer-transform"><option value="index100">Índice base 100</option><option value="level">Nível original</option><option value="change12m">Mudança em 12 meses (unidade original)</option></select></label>
+          <label>Defasagem de B<select id="explorer-lag"><option value="0">0 meses</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="9">9 meses</option><option value="12">12 meses</option></select></label>
+          <label>Período<select id="explorer-range"><option value="3">3 anos</option><option value="5" selected>5 anos</option><option value="10">10 anos</option><option value="all">Tudo</option></select></label>
+          <div id="explorer-view-controls" class="range-controls" role="group" aria-label="Tipo de visualização"><button type="button" data-explorer-view="time" aria-pressed="true">No tempo</button><button type="button" data-explorer-view="scatter" aria-pressed="false">Relação</button></div>
+        </div>
+        <div class="chart-panel explorer-chart-panel">
+          <div id="explorer-legend" class="chart-legend"></div>
+          <div id="explorer-note" class="inline-note"></div>
+          <div id="explorer-chart" class="chart explorer-chart" role="img" aria-label="Exploração de relação entre indicadores"></div>
+          <p id="explorer-summary" class="sr-only" aria-live="polite"></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="comunicacao" aria-labelledby="copom-title" class="copom-section analysis-section">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Comunicação monetária</p>
+          <h2 id="copom-title">O que mudou nas decisões e na comunicação do Copom?</h2>
+          <p class="section-intro">Comunicado, ata e RPM ajudam a contextualizar a decisão e sua narrativa. A visão padrão mostra apenas os itens mais recentes; a cronologia completa fica disponível sob demanda.</p>
+        </div>
+        <p id="copom-date" class="context-label">Aguardando dados…</p>
+      </div>
+      <div id="copom-unavailable" class="error-panel" hidden></div>
+      <div id="copom-content">
+        <div class="copom-columns">
+          <div>
+            <div class="list-heading"><h3>Documentos recentes</h3><button id="copom-recent-toggle" class="text-button" type="button" hidden>Ver todos</button></div>
+            <div id="copom-recent" class="policy-event-list"></div>
+          </div>
+          <div>
+            <div class="list-heading"><h3>Próximos eventos conhecidos</h3><button id="copom-upcoming-toggle" class="text-button" type="button" hidden>Ver todos</button></div>
+            <div id="copom-upcoming" class="policy-event-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div id="load-error" class="error-panel" hidden role="alert"></div>
+  </main>
+
+  <dialog id="metadata-dialog" aria-labelledby="metadata-title">
+    <form method="dialog" class="dialog-shell">
+      <div class="dialog-heading">
+        <div>
+          <p class="section-kicker">Detalhes do indicador</p>
+          <h2 id="metadata-title">Indicador</h2>
+        </div>
+        <button class="dialog-close" value="close" aria-label="Fechar metadados">×</button>
+      </div>
+      <div id="metadata-body"></div>
+    </form>
+  </dialog>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

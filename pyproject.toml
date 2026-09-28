@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "brazil-monetary-policy-monitor"
+version = "0.1.0"
+description = "Auditable Brazilian monetary-policy monitor with Taylor-rule benchmarks"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [
+  { name = "Brazil Monetary Policy Monitor contributors" }
+]
+dependencies = []
+
+[project.scripts]
+bm-monitor = "brazil_monetary_policy_monitor.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"brazil_monetary_policy_monitor.db" = ["migrations/*.sql"]
